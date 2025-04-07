@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Download } from 'lucide-react';
-import { downloadCSV } from '../lib/utils';
+import { downloadCSV, getCostMidpoint } from '../lib/utils';
 import { PRODUCTIVITY_METRICS, ROLE_TASK_MAPPING } from '../lib/data'; // Import from data.js
+import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const WorkloadAnalysis = ({ personnel, roles, isUserAdmin }) => { 
   const [workOrders, setWorkOrders] = useState({

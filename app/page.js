@@ -854,6 +854,44 @@ export default function Dashboard() {
     }
   }, [db, isUserAdmin, setError, setPersonnel]);
 
+  // Function to save the entire timeline state to Firestore
+  const saveTimelineChanges = useCallback(async () => {
+    if (!isUserAdmin || !db) {
+      setError("Permission denied or database error. Cannot save timeline changes.");
+      return false;
+    }
+    setError(null);
+    try {
+      const timelineDocRef = doc(db, 'timeline', 'current');
+      await setDoc(timelineDocRef, { phases: timeline, updatedAt: new Date() }, { merge: true }); // Use setDoc with merge:true or updateDoc
+      console.log("Timeline changes saved successfully.");
+      return true;
+    } catch (err) {
+      console.error("Error saving timeline changes:", err);
+      setError("Failed to save timeline changes to the database.");
+      return false;
+    }
+  }, [db, isUserAdmin, timeline, setError]);
+
+  // Function to save the entire budget state to Firestore
+  const saveBudgetChanges = useCallback(async () => {
+    if (!isUserAdmin || !db) {
+      setError("Permission denied or database error. Cannot save budget changes.");
+      return false;
+    }
+    setError(null);
+    try {
+      const budgetDocRef = doc(db, 'budget', 'current');
+      await setDoc(budgetDocRef, { factories: budgetData, updatedAt: new Date() }, { merge: true }); // Use setDoc with merge:true or updateDoc
+      console.log("Budget changes saved successfully.");
+      return true;
+    } catch (err) {
+      console.error("Error saving budget changes:", err);
+      setError("Failed to save budget changes to the database.");
+      return false;
+    }
+  }, [db, isUserAdmin, budgetData, setError]);
+
   // Render helpers or main render logic
   const renderContent = () => {
     // Handle Auth Loading State FIRST
