@@ -348,8 +348,9 @@ export default function Dashboard() {
          requestAnimationFrame(() => {
              try {
                  const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
-                 if (element) element.textContent = originalText; 
-             } catch (e) { console.error("Error reverting text content:", e); });
+                 if (element) element.textContent = originalText;
+             } catch (e) { console.error("Error reverting text content:", e); }
+         });
         return; // No *meaningful* change, no need to save
     }
 
@@ -365,13 +366,14 @@ export default function Dashboard() {
         // Revert local state if Firestore update failed
         console.warn("Firestore update failed, reverting local state for:", currentlyEditingId);
         // Use originalText (untrimmed) for revert to be precise
-        updateLocalState(currentlyEditingId, originalText); 
+        updateLocalState(currentlyEditingId, originalText);
         // Visually revert the field as well
          requestAnimationFrame(() => {
              try {
                  const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
-                 if (element) element.textContent = originalText; 
-             } catch (e) { console.error("Error reverting text content:", e); });
+                 if (element) element.textContent = originalText;
+             } catch (e) { console.error("Error reverting text content:", e); }
+         });
         // Error state should have been set within updateFirestoreData
     } else {
         console.log("Successfully saved changes for:", currentlyEditingId);
@@ -379,8 +381,9 @@ export default function Dashboard() {
          requestAnimationFrame(() => {
              try {
                  const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
-                 if (element) element.textContent = trimmedEditText; 
-             } catch (e) { console.error("Error confirming text content:", e); });
+                 if (element) element.textContent = trimmedEditText;
+             } catch (e) { console.error("Error confirming text content:", e); }
+         });
     }
   };
 
@@ -405,8 +408,9 @@ export default function Dashboard() {
        requestAnimationFrame(() => {
            try {
                 const element = document.querySelector(`[data-edit-id="${id}"]`);
-                if (element) element.textContent = originalText; 
-           } catch (err) { console.error("Error reverting text on Escape:", err); });
+                if (element) element.textContent = originalText;
+           } catch (err) { console.error("Error reverting text on Escape:", err); }
+       });
     }
   };
 
