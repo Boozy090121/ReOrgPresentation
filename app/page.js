@@ -33,7 +33,10 @@ export default function Dashboard() {
       setIsUserAdmin(isAdmin);
     });
 
-    return () => unsubscribe();
+    // Cleanup subscription on unmount
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   // Load personnel from Firebase

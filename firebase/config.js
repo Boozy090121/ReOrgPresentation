@@ -32,13 +32,8 @@ const isAdmin = async (user) => {
 };
 
 // Auth state observer
-let unsubscribeAuth;
 const setupAuthObserver = (callback) => {
-  if (unsubscribeAuth) {
-    unsubscribeAuth();
-  }
-  
-  unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+  return onAuthStateChanged(auth, async (user) => {
     if (user) {
       const adminStatus = await isAdmin(user);
       console.log('User is signed in:', user.email);
@@ -49,8 +44,6 @@ const setupAuthObserver = (callback) => {
       if (callback) callback(null, false);
     }
   });
-  
-  return unsubscribeAuth;
 };
 
 export { db, auth, isAdmin, setupAuthObserver }; 
