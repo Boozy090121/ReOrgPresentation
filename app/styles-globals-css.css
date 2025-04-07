@@ -227,4 +227,579 @@ body {
 
 .budget-table tr:hover {
   background-color: var(--pci-light-gray);
+}
+
+/* Login Button (adjustments) */
+.auth-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  margin-left: 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.logout-button {
+  background-color: var(--pci-gray);
+  color: var(--pci-white);
+  border: none;
+}
+
+.logout-button:hover {
+  background-color: #555;
+}
+
+/* Header Actions (Add/Export buttons) */
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+/* General Button Styles */
+.button {
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s, border-color 0.2s;
+  border: 1px solid transparent;
+}
+
+.primary-button {
+  background-color: var(--pci-blue);
+  color: var(--pci-white);
+  border-color: var(--pci-blue);
+}
+
+.primary-button:hover {
+  background-color: var(--pci-light-blue);
+  border-color: var(--pci-light-blue);
+}
+
+.secondary-button {
+  background-color: var(--pci-white);
+  color: var(--pci-gray);
+  border-color: #ccc;
+}
+
+.secondary-button:hover {
+  background-color: #f0f0f0;
+  border-color: #bbb;
+}
+
+.export-button {
+  background-color: var(--pci-green);
+  color: var(--pci-white);
+  border: none;
+  display: inline-flex; /* Align icon and text */
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+}
+
+.export-button:hover {
+  background-color: #004d00;
+}
+
+.add-person-button {
+  /* Use primary button style */
+  background-color: var(--pci-blue);
+  color: var(--pci-white);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+}
+
+.add-person-button:hover {
+  background-color: var(--pci-light-blue);
+}
+
+.delete-person-button {
+  background: none;
+  border: none;
+  color: var(--pci-red);
+  cursor: pointer;
+  padding: 0.2rem;
+  opacity: 0.6;
+}
+
+.delete-person-button:hover {
+  opacity: 1;
+}
+
+.unassign-button {
+  background: none;
+  border: none;
+  color: #f47920; /* Orange accent */
+  cursor: pointer;
+  padding: 0.2rem;
+  margin-left: 0.5rem;
+  opacity: 0.7;
+}
+
+.unassign-button:hover {
+  opacity: 1;
+}
+
+/* Structure Tab Layout */
+.structure-tab-content {
+  display: flex;
+  gap: 2rem;
+}
+
+.hierarchy-column {
+  flex: 3; /* Takes more space */
+}
+
+.personnel-column {
+  flex: 1; /* Takes less space */
+  max-width: 300px; /* Limit width */
+}
+
+/* Personnel List */
+.personnel-list {
+  background-color: var(--pci-white);
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  height: fit-content; /* Adjust height */
+}
+
+.personnel-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.personnel-list-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.personnel-cards {
+  max-height: 60vh; /* Limit height and allow scroll */
+  overflow-y: auto;
+  padding-right: 5px; /* Space for scrollbar */
+}
+
+.personnel-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 0.5rem 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.personnel-name {
+  flex-grow: 1;
+  margin-right: 0.5rem;
+}
+
+.personnel-card.draggable {
+  cursor: grab;
+}
+
+.personnel-card.dragging {
+  opacity: 0.5;
+  background-color: #e0e0e0;
+}
+
+.drop-zone.drag-over-available {
+  background-color: #e0ffe0 !important; /* Light green for dropping here */
+}
+
+.empty-list-message {
+  color: #888;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+}
+
+/* Role Card */
+.role-card {
+  background-color: var(--pci-white);
+  margin-bottom: 1.5rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease;
+  overflow: hidden; /* Ensure border radius applies */
+}
+
+.role-card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.role-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.role-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.role-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.role-content {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #eee;
+}
+
+.role-content h4, .role-content h5 {
+  color: var(--pci-blue);
+  margin-top: 1.2rem;
+  margin-bottom: 0.6rem;
+}
+
+.role-content ul {
+  list-style: disc;
+  padding-left: 20px;
+  margin-bottom: 1rem;
+}
+
+.role-content li {
+  margin-bottom: 0.4rem;
+  line-height: 1.5;
+}
+
+.role-details,
+.kpis-section,
+.skills-section,
+.progression-section {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #eee;
+}
+
+.assigned-personnel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #eee;
+}
+
+.assigned-person {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 0.5rem 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.assigned-person.draggable {
+  cursor: grab;
+}
+
+.assigned-person.dragging {
+  opacity: 0.5;
+}
+
+.role-content.drop-zone.drag-over {
+  background-color: #e6f2ff !important; /* Light blue for dropping here */
+}
+
+/* Org Structure Hierarchy Visuals */
+.director-level {
+  margin-bottom: 2rem;
+}
+
+.connector-line-vertical {
+  width: 2px;
+  height: 30px;
+  background-color: #ccc;
+  margin: 0 auto 1rem auto; /* Center below director */
+}
+
+.reports-level {
+  display: flex;
+  gap: 2rem;
+  justify-content: center; /* Center reports below director */
+  align-items: flex-start;
+}
+
+.systems-lead-container,
+.managers-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.manager-section {
+  border: 1px solid #eee;
+  padding: 1rem;
+  border-radius: 6px;
+  background-color: #fdfdfd;
+}
+
+.team-members {
+  margin-top: 1rem;
+  padding-left: 1.5rem;
+  border-left: 2px dashed #ccc;
+}
+
+.offshift-level {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+}
+
+.lab-group-level {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border: 1px solid var(--pci-green);
+  border-radius: 6px;
+  padding: 1.5rem;
+  background-color: #f0fff0;
+}
+
+.lab-group-level h3 {
+  text-align: center;
+  color: var(--pci-green);
+  margin-bottom: 1rem;
+}
+
+.lab-team {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-around;
+}
+
+/* Budget Analysis */
+.factories-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); /* Responsive grid */
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.factory-budget-section {
+  background-color: var(--pci-white);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.factory-budget-section h3 {
+  color: var(--pci-blue);
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.factory-budget-section h4 {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.budget-table {
+  margin-bottom: 1.5rem;
+}
+
+.budget-category-title {
+  font-weight: bold;
+  background-color: #f9f9f9;
+}
+
+.budget-subtotal td, .budget-total td {
+  font-weight: bold;
+  background-color: #f0f0f0;
+}
+
+.production-volume {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.factory-totals {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.factory-totals p {
+  margin: 0.5rem 0;
+}
+
+.chart-container {
+  margin-top: 2rem;
+}
+
+.comparative-analysis {
+  margin-top: 3rem;
+  background-color: var(--pci-white);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.summary-table td:nth-child(2),
+.summary-table td:nth-child(3) {
+  text-align: right;
+}
+
+/* Workload Analysis */
+.workload-analysis-container {
+  background-color: var(--pci-white);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.workload-inputs {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed #eee;
+}
+
+.workload-inputs h3 {
+  margin-bottom: 1rem;
+}
+
+.input-group {
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.input-group label {
+  width: 180px; /* Align labels */
+  text-align: right;
+}
+
+.input-group input[type="number"] {
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 100px;
+}
+
+.metric-info {
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.headcount-results {
+  margin-bottom: 2rem;
+}
+
+.comparison-table th:nth-child(n+2),
+.comparison-table td:nth-child(n+2) {
+  text-align: center;
+}
+
+/* Editable Text */
+.editable-text {
+  cursor: text;
+  padding: 2px 4px;
+  border-radius: 3px;
+  min-width: 50px; /* Ensure it's clickable */
+}
+
+.editable-text[contentEditable="true"]:hover {
+  background-color: #f0f0f0;
+}
+
+.editable-text[contentEditable="true"]:focus {
+  background-color: var(--pci-white);
+  outline: 1px solid var(--pci-blue);
+  box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.number-input {
+  text-align: right;
+}
+
+/* Error Banner */
+.error-banner {
+  background-color: #ffdddd; /* Light red */
+  color: #d8000c; /* Dark red */
+  border: 1px solid #d8000c;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+}
+
+.error-banner span {
+  flex-grow: 1;
+}
+
+.close-error-button {
+  background: none;
+  border: none;
+  color: #d8000c;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.close-error-button:hover {
+  opacity: 1;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  color: var(--pci-blue);
+}
+
+/* Chart Placeholder */
+.chart-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+/* General Utility */
+.hidden {
+  display: none;
 } 

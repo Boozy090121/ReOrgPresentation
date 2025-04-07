@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined';
@@ -20,12 +21,14 @@ const firebaseConfig = {
 let app;
 let analytics;
 let db;
+let auth;
 
 if (isBrowser) {
   try {
     app = initializeApp(firebaseConfig);
     analytics = getAnalytics(app);
     db = getFirestore(app);
+    auth = getAuth(app);
     
     // Enable offline persistence
     enableIndexedDbPersistence(db).catch((err) => {
@@ -40,4 +43,4 @@ if (isBrowser) {
   }
 }
 
-export { app, analytics, db }; 
+export { app, analytics, db, auth }; 
