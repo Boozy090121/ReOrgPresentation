@@ -665,7 +665,7 @@ export default function Dashboard() {
          console.error("Error in updateLocalState for id:", id, error);
          setError("Error updating data locally. Changes might not be saved.");
     }
-  }, []);
+  }, [personnel, timeline, budgetData]);
 
   // Helper to update Firestore
   const updateFirestoreData = useCallback(async (id, value) => {
@@ -676,7 +676,7 @@ export default function Dashboard() {
         return false; // Indicate failure
     }
 
-    const parts = id.split('-');
+    const parts = id.split('-'); // Ensure parenthesis is correct here!
     if (parts.length < 3) {
         setError("Invalid data structure for saving.");
         return false;
@@ -685,44 +685,159 @@ export default function Dashboard() {
 
     try {
         if (type === 'timeline') {
-            // Timeline saves are now handled by saveTimelineChanges for simplicity and atomicity
-            console.log("Triggering saveTimelineChanges due to timeline item edit.");
-            await saveTimelineChanges(); 
-            return true; // Assume success if saveTimelineChanges doesn't throw
+            // Direct update for timeline fields
+            const phaseIndex = parseInt(parts[1], 10);
+            const field = parts[2];
+            let activityIndex = null;
+            if (field === 'activity') {
+                if (parts.length < 4) throw new Error('Invalid timeline activity ID');
+                activityIndex = parseInt(parts[3], 10);
+            }
+
+            // Validate indices
+            if (isNaN(phaseIndex) || phaseIndex < 0 || (activityIndex !== null && (isNaN(activityIndex) || activityIndex < 0))) {
+                 throw new Error('Invalid index in timeline ID');
+            }
+
+            // Construct the field path for Firestore update
+            let fieldPath;
+            if (activityIndex !== null) {
+                 // Ensure the activities array exists and the index is valid (fetch might be needed for full safety)
+                 // For simplicity, we assume the structure exists based on local state used for editing
+                 fieldPath = `phases.${phaseIndex}.activities.${activityIndex}`;
+            } else {
+                 fieldPath = `phases.${phaseIndex}.${field}`;
+            }
+
+            const timelineDocRef = doc(db, 'timeline', 'current');
+            await updateDoc(timelineDocRef, { [fieldPath]: value, updatedAt: new Date() });
+            console.log(`Updated timeline field: ${fieldPath}`);
+            return true;
+
         } else if (type === 'budget') {
-            // Budget saves are now handled by saveBudgetChanges
-            console.log("Triggering saveBudgetChanges due to budget item edit.");
-            await saveBudgetChanges();
-            return true; // Assume success if saveBudgetChanges doesn't throw
+             // Direct update for budget fields
+             const factoryId = parts[1];
+             const categoryKey = parts[2];
+
+             if (!factoryId) throw new Error('Missing factoryId in budget ID');
+
+             let fieldPath = `factories.${factoryId}`;
+             let updateValue = value; // Default to the passed value
+
+             if (categoryKey === 'factoryName') {
+                fieldPath += '.name';
+             } else if (categoryKey === 'productionVolume') {
+                fieldPath += '.productionVolume';
+                const numValue = Number(value);
+                updateValue = isNaN(numValue) ? 0 : numValue;
+             } else if (categoryKey === 'personnelCosts') {
+                if (parts.length < 6) throw new Error('Invalid budget personnelCosts ID');
+                const personnelCategoryKey = parts[3];
+                const roleIndex = parseInt(parts[4], 10);
+                const roleField = parts[5];
+                if (isNaN(roleIndex) || roleIndex < 0 || !personnelCategoryKey || !roleField) throw new Error('Invalid index/field in budget personnelCosts ID');
+                fieldPath += `.personnelCosts.${personnelCategoryKey}.roles.${roleIndex}.${roleField}`;
+                if (roleField === 'count') { // Handle numeric conversion
+                    const numValue = Number(value);
+                    updateValue = isNaN(numValue) ? 0 : numValue;
+                }
+            } else if (categoryKey === 'operationalExpenses') {
+                if (parts.length < 5) throw new Error('Invalid budget operationalExpenses ID');
+                const opExIndex = parseInt(parts[3], 10);
+                const opExField = parts[4];
+                 if (isNaN(opExIndex) || opExIndex < 0 || !opExField) throw new Error('Invalid index/field in budget operationalExpenses ID');
+                fieldPath += `.operationalExpenses.${opExIndex}.${opExField}`;
+                 if (opExField === 'amount') { // Handle numeric conversion
+                     const numValue = Number(value);
+                     updateValue = isNaN(numValue) ? 0 : numValue;
+                 }
+             } else {
+                throw new Error(`Unknown budget category key: ${categoryKey}`);
+             }
+
+             const budgetDocRef = doc(db, 'budget', 'current');
+             await updateDoc(budgetDocRef, { [fieldPath]: updateValue, updatedAt: new Date() });
+             console.log(`Updated budget field: ${fieldPath}`);
+             return true;
+
         } else if (type === 'personnel') {
             const personId = parts[1];
             const field = parts[2];
             if (!personId || !field) {
                  setError("Invalid personnel data for saving.");
-                 return false; 
+                 return false;
             }
-            
-            // Prepare update data, converting known numeric fields if necessary
+
             let updateValue = value;
-            if (field === 'experience') { // Example numeric field
+            if (field === 'experience') {
                 const numValue = Number(value);
-                updateValue = isNaN(numValue) ? 0 : numValue; // Default to 0 if not a number
+                updateValue = isNaN(numValue) ? 0 : numValue;
             }
-            
+
             const updateData = { [field]: updateValue, updatedAt: new Date() };
             await updateDoc(doc(db, 'personnel', personId), updateData);
             console.log(`Updated personnel ${personId} field ${field}`);
-            return true; // Indicate success
+            return true;
         }
          console.warn("updateFirestoreData: Unrecognized type:", type);
          setError(`Cannot save changes for unknown data type: ${type}`);
-         return false; // Indicate failure for unknown type
+         return false;
     } catch (error) {
         console.error(`Error updating Firestore for id ${id}:`, error);
-        setError(`Failed to save changes for ${id}. Please check connection and try again.`);
-        return false; // Indicate failure
+        setError(`Failed to save changes for ${id}. Details: ${error.message}`);
+        return false;
     }
-  }, [db, saveTimelineChanges, saveBudgetChanges, setError]);
+  // Ensure db and setError are the main dependencies now
+  }, [db, setError]);
+
+  // Function to add a new person
+  const addPersonnel = useCallback(async () => {
+    if (!isUserAdmin || !db) {
+      setError("Permission denied or database connection error. Cannot add personnel.");
+      return;
+    }
+    setError(null);
+    const newPerson = {
+      name: 'New Teammate',
+      experience: 0,
+      assignedRole: null, // Start as unassigned
+      skills: [], // Default empty skills array
+      notes: '', // Default empty notes
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    try {
+      const docRef = await addDoc(collection(db, 'personnel'), newPerson);
+      console.log("New person added with ID:", docRef.id);
+      // Update local state optimistically
+      setPersonnel(prev => [...prev, { id: docRef.id, ...newPerson }]);
+    } catch (err) {
+      console.error("Error adding personnel:", err);
+      setError("Failed to add new personnel to the database.");
+    }
+  }, [db, isUserAdmin, setError, setPersonnel]);
+
+  // Function to delete a person
+  const deletePersonnel = useCallback(async (personId) => {
+    if (!isUserAdmin || !db || !personId) {
+      setError("Permission denied, invalid ID, or database connection error. Cannot delete personnel.");
+      return;
+    }
+    // Optional: Add a confirmation dialog here in a real app
+    // if (!window.confirm(`Are you sure you want to delete person ${personId}?`)) {
+    //   return;
+    // }
+    setError(null);
+    try {
+      await deleteDoc(doc(db, 'personnel', personId));
+      console.log("Deleted person with ID:", personId);
+      // Update local state
+      setPersonnel(prev => prev.filter(p => p.id !== personId));
+    } catch (err) {
+      console.error("Error deleting personnel:", err);
+      setError(`Failed to delete personnel ${personId} from the database.`);
+    }
+  }, [db, isUserAdmin, setError, setPersonnel]);
 
   // Render helpers or main render logic
   const renderContent = () => {
