@@ -253,62 +253,262 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <h4 className="font-medium mb-2">Available Personnel</h4>
-            <div className="border rounded-lg min-h-40 p-3 bg-gray-50">
-              {personnel.filter(p => !p.assignedRole).length === 0 ? (
-                <div className="text-gray-500 text-sm text-center py-10">All personnel assigned</div>
-              ) : (
-                <div className="space-y-2">
-                  {personnel.filter(p => !p.assignedRole).map(person => (
-                    <div
-                      key={person.id}
-                      className="bg-white p-2 rounded border shadow-sm flex justify-between items-center cursor-move"
-                      draggable
-                      onDragStart={() => handleDragStart(person)}
-                    >
-                      <div className="font-medium">{person.name}</div>
-                      <Move size={16} className="text-gray-500" />
-                    </div>
-                  ))}
-                </div>
-              )}
+        
+        {/* Tab Navigation */}
+        <div className="flex border-b mb-4">
+          <button 
+            className={`py-2 px-4 font-medium ${activeTab === 'structure' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('structure')}
+          >
+            <div className="flex items-center">
+              <BarChart size={18} className="mr-2" />
+              Organization Structure
             </div>
-          </div>
-          
-          <div>
-            <h4 className="font-medium mb-2">Assigned Personnel</h4>
-            <div className="border rounded-lg min-h-40 p-3 bg-gray-50">
-              {personnel.filter(p => p.assignedRole).length === 0 ? (
-                <div className="text-gray-500 text-sm text-center py-10">No personnel assigned yet</div>
-              ) : (
-                <div className="space-y-2">
-                  {personnel.filter(p => p.assignedRole).map(person => (
-                    <div
-                      key={person.id}
-                      className="bg-white p-2 rounded border shadow-sm flex justify-between items-center"
-                    >
-                      <div className="font-medium">{person.name}</div>
-                      <div className="flex items-center">
-                        <span className="text-sm text-gray-600 mr-2">
-                          {person.assignedRole}
-                        </span>
-                        <button
-                          className="text-red-500"
-                          onClick={() => removePerson(person.id)}
-                        >
-                          <XCircle size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          </button>
+          <button 
+            className={`py-2 px-4 font-medium ${activeTab === 'timeline' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('timeline')}
+          >
+            <div className="flex items-center">
+              <Calendar size={18} className="mr-2" />
+              Implementation Timeline
             </div>
-          </div>
+          </button>
+          <button 
+            className={`py-2 px-4 font-medium ${activeTab === 'budget' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('budget')}
+          >
+            <div className="flex items-center">
+              <DollarSign size={18} className="mr-2" />
+              Budget Analysis
+            </div>
+          </button>
         </div>
+
+        {/* Tab Content */}
+        {activeTab === 'structure' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <h4 className="font-medium mb-2">Available Personnel</h4>
+              <div className="border rounded-lg min-h-40 p-3 bg-gray-50">
+                {personnel.filter(p => !p.assignedRole).length === 0 ? (
+                  <div className="text-gray-500 text-sm text-center py-10">All personnel assigned</div>
+                ) : (
+                  <div className="space-y-2">
+                    {personnel.filter(p => !p.assignedRole).map(person => (
+                      <div
+                        key={person.id}
+                        className="bg-white p-2 rounded border shadow-sm flex justify-between items-center cursor-move"
+                        draggable
+                        onDragStart={() => handleDragStart(person)}
+                      >
+                        <div className="font-medium">{person.name}</div>
+                        <Move size={16} className="text-gray-500" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-medium mb-2">Assigned Personnel</h4>
+              <div className="border rounded-lg min-h-40 p-3 bg-gray-50">
+                {personnel.filter(p => p.assignedRole).length === 0 ? (
+                  <div className="text-gray-500 text-sm text-center py-10">No personnel assigned yet</div>
+                ) : (
+                  <div className="space-y-2">
+                    {personnel.filter(p => p.assignedRole).map(person => (
+                      <div
+                        key={person.id}
+                        className="bg-white p-2 rounded border shadow-sm flex justify-between items-center"
+                      >
+                        <div className="font-medium">{person.name}</div>
+                        <div className="flex items-center">
+                          <span className="text-sm text-gray-600 mr-2">
+                            {person.assignedRole}
+                          </span>
+                          <button
+                            className="text-red-500"
+                            onClick={() => removePerson(person.id)}
+                          >
+                            <XCircle size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'timeline' && (
+          <div className="border rounded-lg p-4 bg-white">
+            <h3 className="text-lg font-bold mb-4">Implementation Timeline</h3>
+            <div className="space-y-6">
+              <div className="border-l-4 border-blue-500 pl-4">
+                <h4 className="font-bold">Phase 1: Planning & Preparation</h4>
+                <p className="text-sm text-gray-600 mb-2">Month 1 (April)</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Finalize organization structure and job descriptions</li>
+                  <li>Develop transition plan for existing staff</li>
+                  <li>Identify training needs and create development plans</li>
+                  <li>Create communication plan for clients and stakeholders</li>
+                  <li>Prepare transition documentation</li>
+                </ul>
+              </div>
+              
+              <div className="border-l-4 border-green-500 pl-4">
+                <h4 className="font-bold">Phase 2: Initial Implementation</h4>
+                <p className="text-sm text-gray-600 mb-2">Month 2 (May 1st Deadline)</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Transition existing staff to new roles</li>
+                  <li>Fill critical open positions</li>
+                  <li>Conduct initial training for all team members</li>
+                  <li>Implement new client team structure</li>
+                  <li>Establish metrics dashboards and reporting</li>
+                </ul>
+              </div>
+              
+              <div className="border-l-4 border-yellow-500 pl-4">
+                <h4 className="font-bold">Phase 3: Rollout & Stabilization</h4>
+                <p className="text-sm text-gray-600 mb-2">Months 5-6</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Complete training and onboarding for all staff</li>
+                  <li>Implement new shift coverage model</li>
+                  <li>Standardize client communication processes</li>
+                  <li>Launch all quality metrics tracking</li>
+                  <li>Validate new quality workflows</li>
+                </ul>
+              </div>
+              
+              <div className="border-l-4 border-purple-500 pl-4">
+                <h4 className="font-bold">Phase 4: Optimization</h4>
+                <p className="text-sm text-gray-600 mb-2">Months 7-9</p>
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>Review and refine organization based on feedback</li>
+                  <li>Develop advanced training for specialized roles</li>
+                  <li>Optimize client-specific processes</li>
+                  <li>Implement continuous improvement initiatives</li>
+                  <li>Conduct post-implementation assessment</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'budget' && (
+          <div className="border rounded-lg p-4 bg-white">
+            <h3 className="text-lg font-bold mb-4">Budget Analysis</h3>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="px-4 py-2 text-left">Category</th>
+                    <th className="px-4 py-2 text-left">Role</th>
+                    <th className="px-4 py-2 text-center">Count</th>
+                    <th className="px-4 py-2 text-right">Cost Range</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Leadership */}
+                  <tr className="border-t border-b bg-blue-50">
+                    <td className="px-4 py-2 font-bold" rowSpan="4">Leadership</td>
+                    <td className="px-4 py-2">Quality Director</td>
+                    <td className="px-4 py-2 text-center">1</td>
+                    <td className="px-4 py-2 text-right">$150,000 - $180,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-blue-50">
+                    <td className="px-4 py-2">Quality Managers</td>
+                    <td className="px-4 py-2 text-center">3</td>
+                    <td className="px-4 py-2 text-right">$378,000 - $474,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-blue-50">
+                    <td className="px-4 py-2">Quality Systems Lead</td>
+                    <td className="px-4 py-2 text-center">1</td>
+                    <td className="px-4 py-2 text-right">$90,000 - $105,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-blue-50">
+                    <td className="px-4 py-2">Lab Manager</td>
+                    <td className="px-4 py-2 text-center">1</td>
+                    <td className="px-4 py-2 text-right">$95,000 - $120,000</td>
+                  </tr>
+                  <tr className="border-t border-b font-bold bg-blue-100">
+                    <td className="px-4 py-2" colSpan="2">Leadership Subtotal</td>
+                    <td className="px-4 py-2 text-center">6</td>
+                    <td className="px-4 py-2 text-right">$713,000 - $879,000</td>
+                  </tr>
+                  
+                  {/* Specialists */}
+                  <tr className="border-t border-b bg-green-50">
+                    <td className="px-4 py-2 font-bold" rowSpan="4">Specialists</td>
+                    <td className="px-4 py-2">Senior Quality Specialists</td>
+                    <td className="px-4 py-2 text-center">6</td>
+                    <td className="px-4 py-2 text-right">$540,000 - $660,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-green-50">
+                    <td className="px-4 py-2">Quality Specialists</td>
+                    <td className="px-4 py-2 text-center">8</td>
+                    <td className="px-4 py-2 text-right">$560,000 - $680,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-green-50">
+                    <td className="px-4 py-2">Quality Specialists, Complaints</td>
+                    <td className="px-4 py-2 text-center">6</td>
+                    <td className="px-4 py-2 text-right">$420,000 - $510,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-green-50">
+                    <td className="px-4 py-2">Senior Lab Technicians</td>
+                    <td className="px-4 py-2 text-center">2</td>
+                    <td className="px-4 py-2 text-right">$150,000 - $180,000</td>
+                  </tr>
+                  <tr className="border-t border-b font-bold bg-green-100">
+                    <td className="px-4 py-2" colSpan="2">Specialists Subtotal</td>
+                    <td className="px-4 py-2 text-center">22</td>
+                    <td className="px-4 py-2 text-right">$1,670,000 - $2,030,000</td>
+                  </tr>
+                  
+                  {/* Associates */}
+                  <tr className="border-t border-b bg-yellow-50">
+                    <td className="px-4 py-2 font-bold" rowSpan="4">Associates</td>
+                    <td className="px-4 py-2">Associate QA Specialists (Day)</td>
+                    <td className="px-4 py-2 text-center">6</td>
+                    <td className="px-4 py-2 text-right">$330,000 - $420,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-yellow-50">
+                    <td className="px-4 py-2">Associate QA Specialists (Night)</td>
+                    <td className="px-4 py-2 text-center">3</td>
+                    <td className="px-4 py-2 text-right">$165,000 - $210,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-yellow-50">
+                    <td className="px-4 py-2">Lab Technicians</td>
+                    <td className="px-4 py-2 text-center">4</td>
+                    <td className="px-4 py-2 text-right">$220,000 - $280,000</td>
+                  </tr>
+                  <tr className="border-t border-b bg-yellow-50">
+                    <td className="px-4 py-2">Associate Lab Technicians</td>
+                    <td className="px-4 py-2 text-center">2</td>
+                    <td className="px-4 py-2 text-right">$90,000 - $110,000</td>
+                  </tr>
+                  <tr className="border-t border-b font-bold bg-yellow-100">
+                    <td className="px-4 py-2" colSpan="2">Associates Subtotal</td>
+                    <td className="px-4 py-2 text-center">15</td>
+                    <td className="px-4 py-2 text-right">$805,000 - $1,020,000</td>
+                  </tr>
+                  
+                  {/* Total */}
+                  <tr className="border-t border-b font-bold bg-gray-200">
+                    <td className="px-4 py-2" colSpan="2">Total Budget</td>
+                    <td className="px-4 py-2 text-center">43</td>
+                    <td className="px-4 py-2 text-right">$3,188,000 - $3,929,000</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
