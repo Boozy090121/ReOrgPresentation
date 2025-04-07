@@ -5,7 +5,7 @@ import Head from 'next/head';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle, 
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save } from 'lucide-react';
 import { db, auth, setupAuthObserver } from '../firebase/config';
-import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 // Timeline data
@@ -32,29 +32,69 @@ const timelineData = [
   }
 ];
 
-// Budget data
-const budgetData = [
-  {
-    id: 'leadership',
-    category: 'Leadership',
-    amount: '$713,000 - $879,000'
+// Add these constants at the top of the file
+const roles = {
+  director: {
+    title: "Quality Director",
+    responsibilities: [
+      "Strategic quality leadership for entire focus factory",
+      "Final approval for critical quality decisions",
+      "Leadership-level client relationship management",
+      "Budget and resource management",
+      "Direct supervision of 4 reports (3 QMs + Systems Lead)"
+    ]
   },
-  {
-    id: 'specialists',
-    category: 'Specialists',
-    amount: '$1,670,000 - $2,030,000'
+  systemsLead: {
+    title: "Quality Systems Lead",
+    responsibilities: [
+      "Maintain quality management system architecture",
+      "Develop and maintain centralized metrics dashboards",
+      "Establish standardized training requirements and materials",
+      "Provide technical systems support for all teams",
+      "Analyze organization-wide quality trends"
+    ]
   },
-  {
-    id: 'associates',
-    category: 'Associates',
-    amount: '$805,000 - $1,020,000'
-  },
-  {
-    id: 'total',
-    category: 'Total Budget',
-    amount: '$3,188,000 - $3,929,000'
+  qualityManager: {
+    title: "Quality Manager",
+    responsibilities: [
+      "Oversee two client accounts",
+      "Approve major deviations/complaints",
+      "Lead client meetings and manage escalations",
+      "Coach team members and manage their development",
+      "Review and approve complex quality documents"
+    ]
   }
-];
+};
+
+const budgetData = {
+  leadership: {
+    title: "Leadership",
+    roles: [
+      { title: "Quality Director", count: 1, costRange: "$150,000 - $180,000" },
+      { title: "Quality Managers", count: 3, costRange: "$378,000 - $474,000" },
+      { title: "Quality Systems Lead", count: 1, costRange: "$90,000 - $105,000" }
+    ],
+    subtotal: { count: 5, costRange: "$618,000 - $759,000" }
+  },
+  specialists: {
+    title: "Specialists",
+    roles: [
+      { title: "Senior Quality Specialists", count: 6, costRange: "$540,000 - $660,000" },
+      { title: "Quality Specialists", count: 8, costRange: "$560,000 - $680,000" },
+      { title: "Quality Specialists, Complaints", count: 6, costRange: "$420,000 - $510,000" }
+    ],
+    subtotal: { count: 20, costRange: "$1,520,000 - $1,850,000" }
+  },
+  associates: {
+    title: "Associates",
+    roles: [
+      { title: "Associate QA Specialists (Day)", count: 6, costRange: "$330,000 - $420,000" },
+      { title: "Associate QA Specialists (Night)", count: 3, costRange: "$165,000 - $210,000" }
+    ],
+    subtotal: { count: 9, costRange: "$495,000 - $630,000" }
+  },
+  total: { count: 34, costRange: "$2,633,000 - $3,239,000" }
+};
 
 // Main Dashboard component
 export default function Dashboard() {
@@ -237,9 +277,20 @@ export default function Dashboard() {
         ADMIN_CREDENTIALS.email,
         ADMIN_CREDENTIALS.password
       );
+      
+      // Add user to admins collection if not already there
+      const userDoc = await getDoc(doc(db, 'admins', userCredential.user.uid));
+      if (!userDoc.exists()) {
+        await setDoc(doc(db, 'admins', userCredential.user.uid), {
+          email: ADMIN_CREDENTIALS.email,
+          createdAt: new Date()
+        });
+      }
+      
       setShowLoginModal(false);
       setLoginError('');
     } catch (error) {
+      console.error('Login error:', error);
       setLoginError('Invalid credentials');
     }
   };
