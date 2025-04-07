@@ -2,6 +2,10 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 
+// Check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
+// Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,8 +17,18 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
-const db = getFirestore(app);
+let app;
+let analytics;
+let db;
+
+if (isBrowser) {
+  try {
+    app = initializeApp(firebaseConfig);
+    analytics = getAnalytics(app);
+    db = getFirestore(app);
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+  }
+}
 
 export { app, analytics, db }; 

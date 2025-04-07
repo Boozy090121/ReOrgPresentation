@@ -17,10 +17,17 @@ export default function Dashboard() {
   const [draggedPerson, setDraggedPerson] = useState(null);
   const [showAddPersonModal, setShowAddPersonModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Load personnel from Firebase
   useEffect(() => {
     const loadPersonnel = async () => {
+      if (!db) {
+        setError('Firebase is not properly initialized. Please check your configuration.');
+        setLoading(false);
+        return;
+      }
+
       try {
         const querySnapshot = await getDocs(collection(db, 'personnel'));
         const loadedPersonnel = [];
@@ -48,6 +55,7 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error('Error loading personnel:', error);
+        setError('Failed to load personnel data. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -173,6 +181,14 @@ export default function Dashboard() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl text-red-500">{error}</div>
       </div>
     );
   }
