@@ -119,35 +119,106 @@ const RoleCard = ({
           <div className="assigned-personnel">
             <h4>Assigned Personnel:</h4>
             {assigned.map(person => {
-              if (!person) return null;
+              // Add checks for person validity
+              if (!person || !person.id) return null; 
+
+              const isEditingName = editingId === `personnel-${person.id}-name`;
+              const isEditingSkills = editingId === `personnel-${person.id}-skills`;
+              const isEditingNotes = editingId === `personnel-${person.id}-notes`;
+
+              // Prepare skills string for display/editing
+              const skillsString = Array.isArray(person.skills) ? person.skills.join(', ') : '';
+
               return (
-                <div key={person.id} className="assigned-person draggable"
+                <div 
+                  key={person.id} 
+                  className={`assigned-person ${isUserAdmin ? 'draggable' : ''}`}
                   draggable={isUserAdmin}
                   onDragStart={(e) => handleDragStart(e, person)}
                   onDragEnd={handleDragEnd}
+                  // Add a wrapper for better layout if needed, or apply styling directly
+                  style={{ marginBottom: '15px', paddingBottom: '10px', borderBottom: '1px solid #eee' }}
                 >
-                  <div
-                    data-edit-id={`person-${person.id}`}
-                    className="editable-text personnel-name"
-                    contentEditable={isUserAdmin}
-                    suppressContentEditableWarning={true}
-                    onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
-                    onClick={() => isUserAdmin && handleTextClick(`person-${person.id}`, person.name)}
-                    onBlur={() => handleTextBlur(`person-${person.id}`)}
-                    onKeyDown={(e) => handleKeyDown(e, `person-${person.id}`)}
-                    onInput={handleTextChange}
-                  >
-                    {editingId === `person-${person.id}` ? editText : person.name}
-                  </div>
-                  {isUserAdmin && (
-                    <button
-                      onClick={() => unassignPerson(person.id)} // Ensure unassignPerson prop is passed correctly
-                      className="unassign-button"
-                      title="Unassign Role"
+                  <div className="assigned-person-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                    {/* Name - Editable */}
+                    <div
+                      data-edit-id={`personnel-${person.id}-name`}
+                      className="editable-text personnel-name"
+                      contentEditable={isUserAdmin}
+                      suppressContentEditableWarning={true}
+                      onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
+                      onClick={() => isUserAdmin && handleTextClick(`personnel-${person.id}-name`, person.name)}
+                      onBlur={() => handleTextBlur(`personnel-${person.id}-name`)}
+                      onKeyDown={(e) => handleKeyDown(e, `personnel-${person.id}-name`)}
+                      onInput={handleTextChange}
+                      style={{ fontWeight: 'bold' }} // Make name stand out
                     >
-                      <XCircle size={14} />
-                    </button>
-                  )}
+                      {isEditingName ? editText : (person.name || 'Unnamed')}
+                    </div>
+                    {isUserAdmin && (
+                      <button
+                        onClick={() => {
+                          // Check if unassignPerson is a function before calling
+                          if (typeof unassignPerson === 'function') {
+                            unassignPerson(person.id); // Pass person ID to unassign
+                          } else {
+                            console.error("unassignPerson handler is not available in RoleCard");
+                          }
+                        }}
+                        className="unassign-button"
+                        title="Unassign Role"
+                        style={{ background: 'none', border: 'none', padding: '2px', cursor: 'pointer' }}
+                      >
+                        <XCircle size={14} color="#dc3545" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Skills - Editable */}
+                  <div className="personnel-detail">
+                    <span className="detail-label" style={{ fontWeight: '500' }}>Skills:</span>
+                    <div
+                      data-edit-id={`personnel-${person.id}-skills`}
+                      className="editable-text personnel-skills"
+                      contentEditable={isUserAdmin}
+                      suppressContentEditableWarning={true}
+                      onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
+                      onClick={() => isUserAdmin && handleTextClick(`personnel-${person.id}-skills`, skillsString)}
+                      onBlur={() => handleTextBlur(`personnel-${person.id}-skills`)}
+                      onKeyDown={(e) => handleKeyDown(e, `personnel-${person.id}-skills`)}
+                      onInput={handleTextChange}
+                      title={isUserAdmin ? "Edit Skills (comma-separated)" : ""}
+                      style={{ marginLeft: '5px' }} // Indent slightly
+                    >
+                      {isEditingSkills ? editText : (skillsString || "-")}
+                    </div>
+                  </div>
+
+                  {/* Notes - Editable */}
+                  <div className="personnel-detail">
+                    <span className="detail-label" style={{ fontWeight: '500' }}>Notes:</span>
+                    <div
+                      data-edit-id={`personnel-${person.id}-notes`}
+                      className="editable-text personnel-notes"
+                      contentEditable={isUserAdmin}
+                      suppressContentEditableWarning={true}
+                      onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
+                      onClick={() => isUserAdmin && handleTextClick(`personnel-${person.id}-notes`, person.notes)}
+                      onBlur={() => handleTextBlur(`personnel-${person.id}-notes`)}
+                      onKeyDown={(e) => handleKeyDown(e, `personnel-${person.id}-notes`)}
+                      onInput={handleTextChange}
+                      title={isUserAdmin ? "Edit Notes" : ""}
+                      style={{ 
+                          marginLeft: '5px', 
+                          whiteSpace: 'pre-wrap', // Allow newlines
+                          minHeight: '30px',     // Ensure space
+                          padding: '2px 4px',   // Some padding
+                          border: isEditingNotes ? '1px solid #ccc' : 'none' // Visual cue when editing
+                      }} 
+                    >
+                      {isEditingNotes ? editText : (person.notes || "-")}
+                    </div>
+                  </div>
                 </div>
               );
             })}

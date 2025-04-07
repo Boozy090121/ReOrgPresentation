@@ -19,19 +19,19 @@ service cloud.firestore {
     
     // Rules for personnel collection
     match /personnel/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
     
     // Rules for timeline collection
     match /timeline/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
     
     // Rules for budget collection
     match /budget/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isAdmin();
     }
 

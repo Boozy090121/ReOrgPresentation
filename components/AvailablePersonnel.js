@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { UserPlus, Trash2, Download } from 'lucide-react'; // Import icons
+import { UserPlus, Trash2, Download, Edit2, Save } from 'lucide-react'; // Added Edit2, Save
 import { db } from '../app/firebase/config'; // Assuming db is exported from here
-import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore'; // Keep Firestore imports if needed *within component* (e.g., maybe not needed now)
 import { downloadCSV } from '../lib/utils'; // Import download utility
 
 const AvailablePersonnel = ({
   personnel,
-  setPersonnel,
+  setPersonnel, // May not be needed if handled by page
   isUserAdmin,
   handleDragStart,
   handleDragEnd,
@@ -16,6 +16,16 @@ const AvailablePersonnel = ({
   handleDragLeaveAvailable,
   setError,
   roles,
+  // Editing props from page.js
+  handleTextClick,
+  handleTextBlur,
+  handleKeyDown,
+  editText,
+  editingId,
+  handleTextChange,
+  // Data modification props from page.js
+  addPersonnel, 
+  deletePersonnel
 }) => {
   const [showAddPersonModal, setShowAddPersonModal] = useState(false);
   const [newPersonName, setNewPersonName] = useState('');
@@ -25,58 +35,68 @@ const AvailablePersonnel = ({
   // Ensure personnel is an array before filtering
   const available = Array.isArray(personnel) ? personnel.filter(p => !p.assignedRole) : [];
 
-  const addNewPerson = async () => {
-    if (!newPersonName.trim() || !isUserAdmin) return;
-    setError(null);
-    try {
-      const docRef = await addDoc(collection(db, 'personnel'), {
-        name: newPersonName.trim(),
-        assignedRole: null,
-        createdAt: new Date()
-      });
-      setPersonnel(prev => [...prev, { id: docRef.id, name: newPersonName.trim(), assignedRole: null, createdAt: new Date() }]);
-      setNewPersonName('');
-      setShowAddPersonModal(false);
-    } catch (err) {
-      setError('Failed to add new person.');
-      console.error('Error adding person:', err);
-    }
+  // Remove internal addNewPerson, use prop
+  // const addNewPerson = async () => { ... };
+
+  // Internal handler to trigger the addPersonnel prop from page.js
+  const handleAddPersonClick = () => {
+    // We can just call the prop directly, no need for name state here
+    // If we wanted a modal for name entry *before* calling page add, keep modal logic
+    // For simplicity now, let's assume the page adds 'New Teammate'
+     if (addPersonnel) {
+       addPersonnel(); // Call the function passed from app/page.js
+     } else {
+       console.error("[AvailablePersonnel] addPersonnel prop is missing!");
+       setError("Error: Cannot add person.");
+     }
+    // setShowAddPersonModal(true); // If keeping modal, trigger it here
   };
 
-  const removePerson = (personId) => {
-    if (!isUserAdmin) return;
-    // Also check personnel array here before find
-    const person = Array.isArray(personnel) ? personnel.find(p => p.id === personId) : null;
-    if (!person) return;
+  // Remove internal removePerson, use prop
+  // const removePerson = (personId) => { ... };
+
+  // Internal handler to set state for the confirmation modal
+  const handleDeletePersonClick = (person) => {
+    if (!isUserAdmin || !person) return;
     setPersonToDelete(person);
     setShowDeleteConfirmModal(true);
   };
 
-  const confirmDeletePerson = async () => {
+  // Remove internal confirmDeletePerson, use prop
+  // const confirmDeletePerson = async () => { ... };
+
+  // Internal handler to call the deletePersonnel prop from page.js
+  const handleConfirmDelete = () => {
     if (!personToDelete || !isUserAdmin) return;
-    
-    const personId = personToDelete.id;
+    if (deletePersonnel) {
+      deletePersonnel(personToDelete.id); // Call the function passed from app/page.js
+    } else {
+      console.error("[AvailablePersonnel] deletePersonnel prop is missing!");
+      setError("Error: Cannot delete person.");
+    }
     setShowDeleteConfirmModal(false);
     setPersonToDelete(null);
-    setError(null);
-
-    try {
-      await deleteDoc(doc(db, 'personnel', personId));
-      setPersonnel(prev => prev.filter(p => p.id !== personId));
-    } catch (err) {
-      setError('Failed to delete person.');
-      console.error('Error deleting person:', err);
-    }
   };
 
   const handleExportPersonnel = () => {
-    const formattedData = formatPersonnelForCsv(personnel, roles); // Need roles prop
-    const headers = ['ID', 'Name', 'Assigned Role Key', 'Assigned Role Title']; // Define desired headers/order
+    // Ensure personnel is an array
+    if (!Array.isArray(personnel)) {
+        console.error("Cannot export, personnel data is not an array.");
+        setError("Cannot export personnel data.");
+        return;
+    }
+    const formattedData = formatPersonnelForCsv(personnel, roles); // Needs roles prop
     
-    // Simple way to reorder/select columns for CSV
+    // Define headers including new fields
+    const headers = ['ID', 'Name', 'Experience', 'Skills', 'Notes', 'Assigned Role Key', 'Assigned Role Title'];
+    
+    // Map data to match headers
     const csvData = formattedData.map(row => ({
         ID: row.id,
         Name: row.name,
+        Experience: row.experience, // Add experience
+        Skills: Array.isArray(row.skills) ? row.skills.join('; ') : '', // Join skills array for CSV
+        Notes: row.notes, // Add notes
         'Assigned Role Key': row.assignedRoleKey,
         'Assigned Role Title': row.assignedRoleTitle
     }));
@@ -86,22 +106,23 @@ const AvailablePersonnel = ({
   };
 
   return (
-    <div className="personnel-column"> {/* Re-add the column wrapper */}
-      {showAddPersonModal && isUserAdmin && (
+    <div className="personnel-column"> 
+      {/* Modal logic can remain, but action buttons call handlers above */}
+       {showAddPersonModal && isUserAdmin && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h3>Add New Person</h3>
-            <input
+            {/* If adding name here, keep input and state */}
+            <input 
               type="text"
-              value={newPersonName}
+              value={newPersonName} 
               onChange={(e) => setNewPersonName(e.target.value)}
-              className="modal-input"
-              placeholder="Enter person's name"
-              autoFocus
+              placeholder="Enter name (optional)" 
             />
             <div className="modal-actions">
               <button onClick={() => setShowAddPersonModal(false)} className="button secondary-button">Cancel</button>
-              <button onClick={addNewPerson} className="button primary-button" disabled={!newPersonName.trim()}>Add Person</button>
+              {/* Adjust add logic if name is needed */}
+              <button onClick={handleAddPersonClick} className="button primary-button">Add Person</button> 
             </div>
           </div>
         </div>
@@ -120,7 +141,7 @@ const AvailablePersonnel = ({
                 Cancel
               </button>
               <button 
-                onClick={confirmDeletePerson} 
+                onClick={handleConfirmDelete} // Call internal handler which calls prop
                 className="button primary-button delete-confirm-button"
                 style={{ backgroundColor: 'var(--pci-red)', borderColor: 'var(--pci-red)' }}
               >
@@ -132,7 +153,7 @@ const AvailablePersonnel = ({
       )}
 
       <div
-        className="personnel-list drop-zone" // Added drop-zone class
+        className="personnel-list drop-zone" 
         onDragOver={handleDragOver}
         onDrop={handleDropOnAvailable}
         onDragEnter={handleDragEnterAvailable}
@@ -142,7 +163,7 @@ const AvailablePersonnel = ({
           <h3>Available Personnel</h3>
           <div className="header-actions">
              {isUserAdmin && (
-               <button onClick={() => setShowAddPersonModal(true)} className="add-person-button" title="Add New Person">
+               <button onClick={handleAddPersonClick} className="add-person-button" title="Add New Person">
                  <UserPlus size={18} /> Add
                </button>
              )}
@@ -152,46 +173,93 @@ const AvailablePersonnel = ({
           </div>
         </div>
         <div className="personnel-cards">
-          {available.map((person) => (
-            <div
-              key={person.id}
-              className={`personnel-card draggable`} // Removed dragging class logic for now, relies on draggedPerson state not passed here
-              draggable={isUserAdmin}
-              onDragStart={(e) => handleDragStart(e, person)}
-              onDragEnd={handleDragEnd}
-            >
-              {/* Basic display - no editing here for now */}
-              <div className="personnel-name">{person.name}</div>
+          {available.map((person) => {
+            // Ensure person object is valid before rendering
+            if (!person || !person.id) return null; 
+            const isEditingName = editingId === `personnel-${person.id}-name`;
+            const isEditingSkills = editingId === `personnel-${person.id}-skills`;
+            const isEditingNotes = editingId === `personnel-${person.id}-notes`;
 
-              {/* Placeholder for potential future inline editing:
-               <div
-                 data-edit-id={`person-${person.id}`}
-                 className="editable-text personnel-name"
-                 contentEditable={isUserAdmin}
-                 suppressContentEditableWarning={true}
-                 onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                 onClick={() => isUserAdmin && handleTextClick(`person-${person.id}`, person.name)} // Requires handleTextClick prop
-                 onBlur={() => handleTextBlur(`person-${person.id}`)} // Requires handleTextBlur prop
-                 onKeyDown={(e) => handleKeyDown(e, `person-${person.id}`)} // Requires handleKeyDown prop
-                 onInput={handleTextChange} // Requires handleTextChange prop
-               >
-                 {editingId === `person-${person.id}` ? editText : person.name} // Requires editingId, editText props
-               </div>
-               */}
+            // Prepare skills string for display/editing
+            const skillsString = Array.isArray(person.skills) ? person.skills.join(', ') : '';
 
-              {isUserAdmin && (
-                <button
-                  onClick={() => removePerson(person.id)}
-                  className="delete-person-button"
-                  title="Delete Person Permanently"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-          ))}
+            return (
+              <div
+                key={person.id}
+                className={`personnel-card available-person-card ${isUserAdmin ? 'draggable' : ''}`}
+                draggable={isUserAdmin}
+                onDragStart={(e) => handleDragStart(e, person)}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="personnel-card-main-info">
+                   {/* Name - Editable */}
+                   <div
+                     data-edit-id={`personnel-${person.id}-name`}
+                     className="editable-text personnel-name"
+                     contentEditable={isUserAdmin}
+                     suppressContentEditableWarning={true}
+                     onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                     onClick={() => isUserAdmin && handleTextClick(`personnel-${person.id}-name`, person.name)}
+                     onBlur={() => handleTextBlur(`personnel-${person.id}-name`)}
+                     onKeyDown={(e) => handleKeyDown(e, `personnel-${person.id}-name`)}
+                     onInput={handleTextChange}
+                   >
+                     {isEditingName ? editText : (person.name || 'Unnamed')}
+                   </div>
+                   {isUserAdmin && (
+                     <button
+                       onClick={() => handleDeletePersonClick(person)} // Use internal handler
+                       className="delete-person-button"
+                       title="Delete Person Permanently"
+                     >
+                       <Trash2 size={14} />
+                     </button>
+                   )}
+                </div>
+
+                {/* Skills - Editable */}
+                <div className="personnel-detail">
+                  <span className="detail-label">Skills:</span>
+                  <div
+                     data-edit-id={`personnel-${person.id}-skills`}
+                     className="editable-text personnel-skills"
+                     contentEditable={isUserAdmin}
+                     suppressContentEditableWarning={true}
+                     onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                     onClick={() => isUserAdmin && handleTextClick(`personnel-${person.id}-skills`, skillsString)}
+                     onBlur={() => handleTextBlur(`personnel-${person.id}-skills`)}
+                     onKeyDown={(e) => handleKeyDown(e, `personnel-${person.id}-skills`)}
+                     onInput={handleTextChange} // Use the shared handler
+                     title={isUserAdmin ? "Edit Skills (comma-separated)" : ""}
+                   >
+                     {isEditingSkills ? editText : (skillsString || "-")} 
+                   </div>
+                </div>
+
+                {/* Notes - Editable */}
+                <div className="personnel-detail">
+                   <span className="detail-label">Notes:</span>
+                   <div
+                     data-edit-id={`personnel-${person.id}-notes`}
+                     className="editable-text personnel-notes"
+                     contentEditable={isUserAdmin}
+                     suppressContentEditableWarning={true}
+                     onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                     onClick={() => isUserAdmin && handleTextClick(`personnel-${person.id}-notes`, person.notes)}
+                     onBlur={() => handleTextBlur(`personnel-${person.id}-notes`)}
+                     onKeyDown={(e) => handleKeyDown(e, `personnel-${person.id}-notes`)}
+                     onInput={handleTextChange} // Use the shared handler
+                     title={isUserAdmin ? "Edit Notes" : ""}
+                     style={{ minHeight: '40px', whiteSpace: 'pre-wrap' }} // Allow multiple lines
+                   >
+                     {isEditingNotes ? editText : (person.notes || "-")}
+                   </div>
+                </div>
+              </div>
+            );
+          })}
           {available.length === 0 && (
-            <p className="empty-list-message">All personnel assigned.</p>
+            <p className="empty-list-message">All personnel assigned or no personnel added.</p>
           )}
         </div>
       </div>
@@ -207,7 +275,9 @@ const arrayToCsv = (data) => {
   csvRows.push(headers.join(','));
   for (const row of data) {
     const values = headers.map(header => {
-      const escaped = ('' + row[header]).replace(/"/g, '\"\"');
+      // Ensure value is treated as string, handle null/undefined
+      const val = row[header] === null || typeof row[header] === 'undefined' ? '' : row[header];
+      const escaped = ('' + val).replace(/"/g, '\"\"'); // Escape double quotes
       return `"${escaped}"`;
     });
     csvRows.push(values.join(','));
@@ -219,16 +289,24 @@ const arrayToCsv = (data) => {
 const formatPersonnelForCsv = (personnel, roles) => {
   // Add check for personnel being an array
   if (!Array.isArray(personnel)) return [];
-  return personnel.map(p => ({
-    id: p.id,
-    name: p.name,
-    assignedRoleKey: p.assignedRole || 'Unassigned',
-    // Check if roles and the specific role exist
-    assignedRoleTitle: p.assignedRole && roles && roles[p.assignedRole]
-      ? roles[p.assignedRole].title
-      : (p.assignedRole || 'Unassigned'),
-    // Add other fields like createdAt if needed
-  }));
+  // Ensure roles is an object before accessing
+  const rolesLookup = roles && typeof roles === 'object' ? roles : {};
+
+  return personnel.map(p => {
+    // Ensure p is an object
+    if (!p || typeof p !== 'object') return {}; 
+    const assignedRole = rolesLookup[p.assignedRole];
+    return {
+      id: p.id || '',
+      name: p.name || '',
+      experience: p.experience ?? 0, // Default experience to 0 if null/undefined
+      skills: Array.isArray(p.skills) ? p.skills.join('; ') : '', // Join with semicolon for CSV clarity
+      notes: p.notes || '',
+      assignedRoleKey: p.assignedRole || 'Unassigned',
+      assignedRoleTitle: assignedRole ? (assignedRole.title || p.assignedRole) : (p.assignedRole || 'Unassigned'),
+      // Add other fields like createdAt if needed
+    };
+  });
 };
 
 export default AvailablePersonnel; 

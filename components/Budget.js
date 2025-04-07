@@ -182,32 +182,31 @@ const Budget = ({
                           if (!role) return null;
                           return (
                             <tr key={`${factoryId}-${categoryKey}-${index}`}>
-                              <td></td>
-                              <td
-                                 data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`}
-                                 className="editable-text"
-                                 contentEditable={isUserAdmin}
-                                 suppressContentEditableWarning={true}
-                                 onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                                 onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`, role.title || '')}
-                                 onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`)}
-                                 onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`)}
-                                 onInput={handleTextChange}
-                                >
-                                 {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title` ? editText : (role.title || '')}
+                              <td 
+                                data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-role`}
+                                className="editable-text"
+                                contentEditable={isUserAdmin}
+                                suppressContentEditableWarning={true}
+                                onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                                onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-role`, role.role)}
+                                onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-role`)}
+                                onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-role`)}
+                                onInput={handleTextChange}
+                              >
+                                {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-role` ? editText : role.role}
                               </td>
                               <td
                                  data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`}
-                                 className="editable-text number-input"
+                                 className="editable-text numeric-input"
                                   contentEditable={isUserAdmin}
                                   suppressContentEditableWarning={true}
                                   onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                                  onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`, (role.count ?? '').toString())}
+                                  onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`, role.count)}
                                   onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`)}
                                   onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`)}
                                   onInput={handleTextChange}
                                  >
-                                  {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count` ? editText : (role.count ?? '')}
+                                  {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count` ? editText : role.count}
                               </td>
                               <td
                                  data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`}
@@ -254,30 +253,30 @@ const Budget = ({
                       return (
                         <tr key={`${factoryId}-opEx-${index}`}>
                            <td
-                             data-edit-id={`budget-${factoryId}-operationalExpenses-${index}-na-category`}
+                             data-edit-id={`budget-${factoryId}-operationalExpenses-${index}-item`}
                              className="editable-text"
                               contentEditable={isUserAdmin}
                               suppressContentEditableWarning={true}
                               onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                              onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-operationalExpenses-${index}-na-category`, item.category || '')}
-                              onBlur={() => handleTextBlur(`budget-${factoryId}-operationalExpenses-${index}-na-category`)}
-                              onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-operationalExpenses-${index}-na-category`)}
+                              onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-operationalExpenses-${index}-item`, item.item)}
+                              onBlur={() => handleTextBlur(`budget-${factoryId}-operationalExpenses-${index}-item`)}
+                              onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-operationalExpenses-${index}-item`)}
                               onInput={handleTextChange}
                              >
-                              {editingId === `budget-${factoryId}-operationalExpenses-${index}-na-category` ? editText : (item.category || '')}
+                              {editingId === `budget-${factoryId}-operationalExpenses-${index}-item` ? editText : item.item}
                            </td>
                             <td
-                             data-edit-id={`budget-${factoryId}-operationalExpenses-${index}-na-amount`}
-                             className="editable-text number-input"
+                             data-edit-id={`budget-${factoryId}-operationalExpenses-${index}-amount`}
+                             className="editable-text numeric-input"
                               contentEditable={isUserAdmin}
                               suppressContentEditableWarning={true}
                               onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                              onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-operationalExpenses-${index}-na-amount`, (item.amount ?? '').toString())}
-                              onBlur={() => handleTextBlur(`budget-${factoryId}-operationalExpenses-${index}-na-amount`)}
-                              onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-operationalExpenses-${index}-na-amount`)}
+                              onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-operationalExpenses-${index}-amount`, item.amount)}
+                              onBlur={() => handleTextBlur(`budget-${factoryId}-operationalExpenses-${index}-amount`)}
+                              onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-operationalExpenses-${index}-amount`)}
                               onInput={handleTextChange}
                              >
-                              {editingId === `budget-${factoryId}-operationalExpenses-${index}-na-amount` ? editText : (item.amount ?? '')}
+                              {editingId === `budget-${factoryId}-operationalExpenses-${index}-amount` ? editText : item.amount}
                            </td>
                         </tr>
                     );
@@ -288,17 +287,17 @@ const Budget = ({
                <div className="production-volume">
                   <h4>Production Volume (Units):</h4> 
                   <span
-                       data-edit-id={`budget-${factoryId}-productionVolume-na-na-volume`}
-                       className="editable-text number-input"
+                       data-edit-id={`budget-${factoryId}-productionVolume`}
+                       className="editable-text numeric-input"
                        contentEditable={isUserAdmin}
                        suppressContentEditableWarning={true}
                        onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                       onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-productionVolume-na-na-volume`, (factoryData.productionVolume ?? '').toString())}
-                       onBlur={() => handleTextBlur(`budget-${factoryId}-productionVolume-na-na-volume`)}
-                       onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-productionVolume-na-na-volume`)}
+                       onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-productionVolume`, summary.factoryData?.productionVolume || 0)}
+                       onBlur={() => handleTextBlur(`budget-${factoryId}-productionVolume`)}
+                       onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-productionVolume`)}
                        onInput={handleTextChange}
                        >
-                        {editingId === `budget-${factoryId}-productionVolume-na-na-volume` ? editText : (factoryData.productionVolume ?? '')}
+                        {editingId === `budget-${factoryId}-productionVolume` ? editText : (summary.factoryData?.productionVolume || 0)}
                   </span>
                </div>
 
@@ -350,7 +349,19 @@ const Budget = ({
               if (!summary || !summary.factoryData) return null;
               return (
                 <tr key={`${summary.factoryId}-summary`}>
-                  <td>{summary.factoryData.name || summary.factoryId}</td>
+                  <td 
+                    data-edit-id={`budget-${summary.factoryId}-factoryName`}
+                    className="editable-text"
+                    contentEditable={isUserAdmin}
+                    suppressContentEditableWarning={true}
+                    onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                    onClick={() => isUserAdmin && handleTextClick(`budget-${summary.factoryId}-factoryName`, summary.factoryData?.name || '')}
+                    onBlur={() => handleTextBlur(`budget-${summary.factoryId}-factoryName`)}
+                    onKeyDown={(e) => handleKeyDown(e, `budget-${summary.factoryId}-factoryName`)}
+                    onInput={handleTextChange}
+                  >
+                     {editingId === `budget-${summary.factoryId}-factoryName` ? editText : (summary.factoryData?.name || summary.factoryId)}
+                  </td>
                   <td>${summary.totalBudget.toLocaleString()}</td>
                   <td>${summary.costPerUnit.toFixed(2)}</td>
                 </tr>

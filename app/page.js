@@ -15,6 +15,7 @@ import Budget from '../components/Budget'; // Import Budget
 import AuthSection from '../components/AuthSection'; // Import AuthSection
 import WorkloadAnalysis from '../components/WorkloadAnalysis'; // Import WorkloadAnalysis
 import { useAuth } from '../lib/hooks/useAuth'; // Import useAuth hook
+import { useInlineEditing } from '../lib/hooks/useInlineEditing'; // Import the new hook
 
 // Main Dashboard component
 export default function Dashboard() {
@@ -23,20 +24,28 @@ export default function Dashboard() {
   const [draggedPerson, setDraggedPerson] = useState(null);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [error, setError] = useState(null);
-  const [editingId, setEditingId] = useState(null);
-  const [editText, setEditText] = useState('');
   const [budgetData, setBudgetData] = useState({});
   const [timeline, setTimeline] = useState([]);
 
   // Use the Auth hook
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
 
+  // Instantiate the inline editing hook
+  const {
+    editingId,
+    editText,
+    handleTextClick,
+    handleTextChange,
+    handleTextBlur,
+    handleKeyDown,
+  } = useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError);
+
   // Data Loading Effect (depends on user authentication)
   useEffect(() => {
     console.log("Data loading effect triggered. LoadingAuth:", loadingAuth, "User:", !!user);
-    // Only load data if auth is resolved and user is logged in
-    if (!loadingAuth && user) {
-      console.log("Auth resolved, user logged in. Starting data load...");
+    // Load data once authentication state is resolved (user might be null)
+    if (!loadingAuth) {
+      console.log("Auth resolved. Starting data load (User:", user ? user.uid : 'none', ")");
       const loadAllData = async () => {
         setError(null);
         setInitialDataLoaded(false); // Ensure loading state is true initially
@@ -69,21 +78,17 @@ export default function Dashboard() {
         }
       };
       loadAllData();
-    } else if (!loadingAuth && !user) {
-      // Reset state if user logs out (or was never logged in after auth resolved)
-      console.log("Auth resolved, user not logged in. Resetting state.");
-      setPersonnel([]);
-      setTimeline([]);
-      setBudgetData({});
-      setInitialDataLoaded(false); // Ensure loaded is false if no user
-      setError(null);
     } else {
       console.log("Auth not yet resolved (loadingAuth is true).");
-       // Optionally reset state here too if needed while auth is loading
-       // setInitialDataLoaded(false);
+       // Reset data while auth is loading?
+       setInitialDataLoaded(false); // Reset loading state
+       setPersonnel([]);
+       setTimeline([]);
+       setBudgetData({});
+       setError(null);
     }
-  // Depend ONLY on auth state and user status
-  }, [loadingAuth, user]); // <<< FIXED Dependency Array
+  // Depend on auth loading state and user status (to reload if user logs in/out)
+  }, [loadingAuth, user, loadPersonnel, loadTimeline, loadBudget]); // Add loader functions as dependencies
   
   // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
   const loadPersonnel = useCallback(async () => {
@@ -178,11 +183,17 @@ export default function Dashboard() {
     }
     setDraggedPerson(person);
     e.dataTransfer.effectAllowed = 'move';
-    e.currentTarget.classList.add('dragging');
+    // Add class directly to the element being dragged
+    if (e.currentTarget) {
+        e.currentTarget.classList.add('dragging');
+    }
   };
 
   const handleDragEnd = (e) => {
-    e.currentTarget.classList.remove('dragging');
+    // Remove class from the element that was dragged
+    if (e.currentTarget) {
+        e.currentTarget.classList.remove('dragging');
+    }
     setDraggedPerson(null);
   };
 
@@ -275,16 +286,23 @@ export default function Dashboard() {
   const handleDragEnter = (e) => {
     if (!isUserAdmin || !draggedPerson) return;
     e.preventDefault();
-    e.currentTarget.classList.add('drag-over');
+    // Add class to the drop target
+    if (e.currentTarget) {
+        e.currentTarget.classList.add('drag-over');
+    }
   };
 
   const handleDragLeave = (e) => {
     if (!isUserAdmin) return;
     e.preventDefault();
-    if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) {
+    // Check if leaving to a child element before removing the class
+    if (e.relatedTarget && e.currentTarget && e.currentTarget.contains(e.relatedTarget)) {
       return;
     }
-    e.currentTarget.classList.remove('drag-over');
+    // Remove class from the drop target
+    if (e.currentTarget) {
+        e.currentTarget.classList.remove('drag-over');
+    }
   };
 
   // Handlers specifically for the Available Personnel drop zone
@@ -292,139 +310,20 @@ export default function Dashboard() {
     if (!isUserAdmin || !draggedPerson) return;
     e.preventDefault();
     // Add a specific class to indicate this drop zone is active
-    e.currentTarget.classList.add('drag-over-available'); 
+    if (e.currentTarget) {
+        e.currentTarget.classList.add('drag-over-available'); 
+    }
   };
 
   const handleDragLeaveAvailable = (e) => {
     if (!isUserAdmin) return;
     e.preventDefault();
     // Check if leaving to a child element before removing the class
-    if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) {
+    if (e.relatedTarget && e.currentTarget && e.currentTarget.contains(e.relatedTarget)) {
       return; 
     }
-    e.currentTarget.classList.remove('drag-over-available');
-  };
-
-  const handleTextClick = (id, currentText) => {
-    if (!isUserAdmin || !id) return; // Add id check
-    setEditingId(id);
-    // Ensure currentText is a string or number before setting
-    setEditText(typeof currentText === 'string' || typeof currentText === 'number' ? String(currentText) : '');
-    // Request animation frame for focus
-    requestAnimationFrame(() => {
-        // Use try-catch for querySelector just in case ID format is bad
-        try {
-            const element = document.querySelector(`[data-edit-id="${id}"]`);
-            if (element) {
-                element.focus();
-            } else {
-                 console.warn(`Element with data-edit-id="${id}" not found for focus.`);
-            }
-        } catch (e) {
-             console.error(`Error selecting element for focus with id="${id}":`, e);
-        }
-    });
-  };
-
-  const handleTextChange = (e) => {
-    // Check if e and e.target exist
-    if (e && e.target) {
-      // Use textContent, ensure it's treated as a string
-      setEditText(e.target.textContent !== null && e.target.textContent !== undefined ? String(e.target.textContent) : '');
-    } else {
-        console.warn("handleTextChange called without valid event target.");
-    }
-  };
-
-  const handleTextBlur = async (id) => {
-    // Add check for isUserAdmin and if the blurred element matches the one being edited
-    if (!isUserAdmin || editingId !== id) {
-         // If editingId is null but id is passed, maybe log a warning? 
-         // This can happen if blur occurs programmatically after reset.
-         // console.log(`handleTextBlur called for ${id} while not editing or not admin.`);
-         return;
-    }
-
-    const originalText = getOriginalText(id);
-    // Ensure editText and originalText are strings for comparison
-    const trimmedEditText = typeof editText === 'string' ? editText.trim() : '';
-    const trimmedOriginalText = typeof originalText === 'string' ? originalText.trim() : '';
-    
-    // Reset editing state *before* async operations
-    const currentlyEditingId = editingId; // Capture id before resetting state
-    setEditingId(null);
-    setEditText(''); 
-
-    // Check if text actually changed 
-    if (trimmedEditText === trimmedOriginalText) {
-        console.log("No change detected for:", currentlyEditingId);
-        // Ensure the visual element reverts if edit text was different only by whitespace
-         requestAnimationFrame(() => {
-             try {
-                 const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
-                 if (element) element.textContent = originalText;
-             } catch (e) { console.error("Error reverting text content:", e); }
-         });
-        return; // No *meaningful* change, no need to save
-    }
-
-    setError(null); // Clear previous errors before attempting save
-
-    // Optimistically update local state first using the robust function
-    updateLocalState(currentlyEditingId, trimmedEditText); // Use trimmed value for consistency
-
-    // Then, attempt to update Firestore using the robust function
-    const success = await updateFirestoreData(currentlyEditingId, trimmedEditText); 
-
-    if (!success) {
-        // Revert local state if Firestore update failed
-        console.warn("Firestore update failed, reverting local state for:", currentlyEditingId);
-        // Use originalText (untrimmed) for revert to be precise
-        updateLocalState(currentlyEditingId, originalText);
-        // Visually revert the field as well
-         requestAnimationFrame(() => {
-             try {
-                 const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
-                 if (element) element.textContent = originalText;
-             } catch (e) { console.error("Error reverting text content:", e); }
-         });
-        // Error state should have been set within updateFirestoreData
-    } else {
-        console.log("Successfully saved changes for:", currentlyEditingId);
-        // Optionally confirm save by ensuring visual matches saved state (trimmed)
-         requestAnimationFrame(() => {
-             try {
-                 const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
-                 if (element) element.textContent = trimmedEditText;
-             } catch (e) { console.error("Error confirming text content:", e); }
-         });
-    }
-  };
-
-  const handleKeyDown = (e, id) => {
-    // Check if e exists and has key property
-    if (!e || !e.key || !id) return;
-
-    if (e.key === 'Enter') {
-      e.preventDefault(); // Prevent newline in contentEditable
-      // Ensure the target element exists before blurring
-      if (e.target && typeof e.target.blur === 'function') {
-        e.target.blur(); // Trigger blur, which calls handleTextBlur
-      } else {
-          handleTextBlur(id); // Fallback if target isn't available/blurrable
-      }
-    } else if (e.key === 'Escape') {
-      // Store original text before resetting state
-      const originalText = getOriginalText(id); 
-      setEditingId(null); // Cancel editing on Escape
-      setEditText('');
-      // Revert visual change immediately using original text
-       requestAnimationFrame(() => {
-           try {
-                const element = document.querySelector(`[data-edit-id="${id}"]`);
-                if (element) element.textContent = originalText;
-           } catch (err) { console.error("Error reverting text on Escape:", err); }
-       });
+     if (e.currentTarget) {
+        e.currentTarget.classList.remove('drag-over-available');
     }
   };
 
@@ -537,7 +436,7 @@ export default function Dashboard() {
         } else if (type === 'personnel') {
             if (parts.length < 3) return ''; // type-personId-field
             const personId = parts[1];
-            const field = parts[2];
+            const field = parts[2]; // Now can be 'name', 'skills', 'notes'
             // Check personnel array and field name
             if (!Array.isArray(personnel) || !personId || !field) {
                  console.warn(`getOriginalText(personnel): Invalid id format or data for id ${id}`);
@@ -550,7 +449,11 @@ export default function Dashboard() {
                  return '';
             }
             // Access field safely, convert null/undefined to empty string
-            return String(person[field] ?? '');
+            // Handle skills array specifically if needed, otherwise treat as string for editing
+            if (field === 'skills' && Array.isArray(person.skills)) {
+                return person.skills.join(', '); // Convert array to comma-separated string for editing
+            }
+            return String(person[field] ?? ''); // Default conversion for name, notes, etc.
         }
     } catch (error) {
         // Catch potential errors during parsing or access
@@ -666,13 +569,21 @@ export default function Dashboard() {
                  if (!Array.isArray(prev)) return prev;
                 if (parts.length < 3) return prev;
                 const personId = parts[1];
-                const field = parts[2];
+                const field = parts[2]; // Can be 'name', 'skills', 'notes'
                 if (!personId || !field) return prev; // No id or field specified
                 
                 const newPersonnel = prev.map(p => {
                     // Check p exists and has id
                     if (p && p.id === personId) {
-                        return { ...p, [field]: value };
+                        let updatedValue = value;
+                        // If updating skills, convert comma-separated string back to array
+                        if (field === 'skills' && typeof value === 'string') {
+                           updatedValue = value.split(',').map(s => s.trim()).filter(Boolean); // Split, trim, remove empty strings
+                        } else if (field === 'experience') { // Keep existing numeric conversion for experience
+                           const numValue = Number(value);
+                           updatedValue = isNaN(numValue) ? 0 : numValue;
+                        }
+                        return { ...p, [field]: updatedValue };
                     }
                     return p;
                 });
@@ -683,7 +594,7 @@ export default function Dashboard() {
          console.error("Error in updateLocalState for id:", id, error);
          setError("Error updating data locally. Changes might not be saved.");
     }
-  }, [personnel, timeline, budgetData]);
+  }, [setError]);
 
   // Helper to update Firestore
   const updateFirestoreData = useCallback(async (id, value) => {
@@ -780,17 +691,21 @@ export default function Dashboard() {
 
         } else if (type === 'personnel') {
             const personId = parts[1];
-            const field = parts[2];
+            const field = parts[2]; // 'name', 'experience', 'skills', 'notes'
             if (!personId || !field) {
                  setError("Invalid personnel data for saving.");
                  return false;
             }
 
             let updateValue = value;
-            if (field === 'experience') {
+            // If field is 'skills', convert comma-separated string to array for Firestore
+            if (field === 'skills' && typeof value === 'string') {
+                updateValue = value.split(',').map(s => s.trim()).filter(Boolean);
+            } else if (field === 'experience') { // Handle numeric conversion for experience
                 const numValue = Number(value);
                 updateValue = isNaN(numValue) ? 0 : numValue;
             }
+            // No special conversion needed for 'name' or 'notes' (assuming they are strings)
 
             const updateData = { [field]: updateValue, updatedAt: new Date() };
             await updateDoc(doc(db, 'personnel', personId), updateData);
@@ -805,7 +720,6 @@ export default function Dashboard() {
         setError(`Failed to save changes for ${id}. Details: ${error.message}`);
         return false;
     }
-  // Ensure db and setError are the main dependencies now
   }, [db, setError]);
 
   // Function to add a new person
@@ -827,8 +741,9 @@ export default function Dashboard() {
     try {
       const docRef = await addDoc(collection(db, 'personnel'), newPerson);
       console.log("New person added with ID:", docRef.id);
-      // Update local state optimistically
-      setPersonnel(prev => [...prev, { id: docRef.id, ...newPerson }]);
+      // Update local state optimistically - ensure all fields match the created object
+      const addedPersonData = { id: docRef.id, ...newPerson };
+      setPersonnel(prev => [...prev, addedPersonData]);
     } catch (err) {
       console.error("Error adding personnel:", err);
       setError("Failed to add new personnel to the database.");
@@ -899,132 +814,133 @@ export default function Dashboard() {
   const renderContent = () => {
     // Handle Auth Loading State FIRST
     if (loadingAuth) {
-      return <div className="loading-container">Authenticating... Please wait.</div>;
-    }
-    
-    // Handle No User State (After Auth Check)
-    if (!user) {
-      return <AuthSection />; // Show login/signup
-    }
-    
-    // Handle Data Loading Error State (If user is logged in but data failed)
-    // Check for error *before* checking initialDataLoaded
-    if (error) {
-        // Display error prominently
-        return (
-          <div className="error-container">
-            <AlertCircle size={48} color="#dc3545" />
-            <h2>Application Error</h2>
-            <p>{error}</p>
-            {/* Simple refresh button */} 
-            <button onClick={() => window.location.reload()} className="button-primary">
-               Refresh Page
-            </button>
-             {/* Optionally add a sign-out button here too */} 
-             <button onClick={signOut} className="button-secondary" style={{marginLeft: '10px'}}>
-                Sign Out
-             </button>
-          </div>
-        );
-    }
-    
-    // Handle Initial Data Loading State (after auth is resolved and no error)
+        return <div className="loading-container">Authenticating...</div>;
+    } 
+
+    // Handle Initial Data Loading State (after auth is resolved)
     if (!initialDataLoaded) {
-        // Added check for !error here to prevent showing loading when error occurred
-        return <div className="loading-container">Loading application data...</div>;
+         return <div className="loading-container">Loading data...</div>;
     }
-    
-    // If authenticated, no error, and data loaded, render tabs
+
+    // Handle DB connection error (after data load attempt)
+    if (!db && ['structure', 'timeline', 'budget'].includes(activeTab)) {
+        // Check error state to avoid double messages if load already failed
+        if (!error) {
+             setError("Database connection lost."); // Set error if not already set
+        } 
+        // Always show error if db is missing for required tabs
+        return <div className="error-container"><AlertCircle /> Database connection lost. Please refresh.</div>;
+    }
+
+    // Handle general data loading errors
+    if (error) {
+        return (
+           <div className="error-container">
+             <AlertCircle size={48} color="#dc3545" />
+             <h2>Application Error</h2>
+             {/* Ensure error is a string */} 
+             <p>{typeof error === 'string' ? error : 'An unknown error occurred.'}</p>
+             <button onClick={() => window.location.reload()} className="button-primary">
+                Refresh Page
+             </button>
+             {/* Show sign out only if user exists */}
+             {user && (
+               <button onClick={signOut} className="button-secondary" style={{marginLeft: '10px'}}>
+                  Sign Out
+               </button>
+             )}
+           </div>
+         );
+    }
+
+    // If auth resolved, data loaded, no errors, render the active tab
     switch (activeTab) {
        case 'structure':
-         // Add checks here specific to this tab's data needs
-         return (roles && Array.isArray(personnel)) ? (
-           <div className="tab-content structure-tab">
-             {/* Add wrapper div for OrgStructure */}
+         // Data should be loaded here, pass isUserAdmin
+         return Array.isArray(personnel) ? (
+           <div className="structure-tab">
              <div className="hierarchy-column">
-               <OrgStructure
-                          roles={roles} // Using imported static roles for now
+               <OrgStructure 
+                          roles={roles} 
                           personnel={personnel}
-                          isUserAdmin={isUserAdmin}
-                          handleDragOver={handleDragOver}
+                          isUserAdmin={isUserAdmin} // Pass admin status
                           handleDropOnRole={handleDropOnRole}
                           handleDragEnter={handleDragEnter}
                           handleDragLeave={handleDragLeave}
                           handleDragStart={handleDragStart}
                           handleDragEnd={handleDragEnd}
+                          editingId={editingId}
+                          editText={editText}
                           handleTextClick={handleTextClick}
                           handleTextBlur={handleTextBlur}
                           handleKeyDown={handleKeyDown}
-                          editText={editText}
-                          editingId={editingId}
-                          unassignPerson={handleDropOnAvailable}
                           handleTextChange={handleTextChange}
-                          allRoles={roles} // Pass allRoles if OrgStructure needs it
+                          unassignPerson={handleDropOnAvailable}
+                          allRoles={roles} 
                />
              </div>
+             {/* Log removed, AvailablePersonnel receives isUserAdmin */}
              <AvailablePersonnel
                         personnel={personnel}
-                        setPersonnel={setPersonnel} // Pass setPersonnel
-                        setError={setError}         // Pass setError
-                        roles={roles}             // Pass roles
-                        isUserAdmin={isUserAdmin}
+                        setPersonnel={setPersonnel} 
+                        setError={setError}         
+                        roles={roles}             
+                        isUserAdmin={isUserAdmin} // Pass admin status
                         handleDragStart={handleDragStart}
                         handleDragEnd={handleDragEnd}
                         handleDragOver={handleDragOver}
                         handleDropOnAvailable={handleDropOnAvailable}
                         handleDragEnterAvailable={handleDragEnterAvailable}
                         handleDragLeaveAvailable={handleDragLeaveAvailable}
+                        editingId={editingId}
+                        editText={editText}
                         handleTextClick={handleTextClick}
                         handleTextBlur={handleTextBlur}
                         handleKeyDown={handleKeyDown}
-                        editText={editText}
-                        editingId={editingId}
                         handleTextChange={handleTextChange}
+                        addPersonnel={addPersonnel}
+                        deletePersonnel={deletePersonnel}
              />
           </div>
-         ) : <div className="loading-container">Loading structure components...</div>;
+         ) : <div className="loading-container">Loading structure components...</div>; // Fallback if personnel isn't array yet
        case 'timeline':
-         // Check timeline data before rendering
          return Array.isArray(timeline) ? (
            <Timeline 
               timeline={timeline} 
-              isUserAdmin={isUserAdmin}
+              isUserAdmin={isUserAdmin} // Pass admin status
+              editingId={editingId}
+              editText={editText}
               handleTextClick={handleTextClick}
               handleTextBlur={handleTextBlur}
               handleKeyDown={handleKeyDown}
-              editText={editText}
-              editingId={editingId}
               handleTextChange={handleTextChange}
               saveTimelineChanges={saveTimelineChanges}
            />
          ) : <div className="loading-container">Loading timeline...</div>;
        case 'budget':
-          // Check budgetData before rendering
-          // Ensure it's an object, potentially check if it has keys?
           return (budgetData && typeof budgetData === 'object') ? (
              <Budget 
                  budgetData={budgetData} 
-                 isUserAdmin={isUserAdmin}
+                 isUserAdmin={isUserAdmin} // Pass admin status
+                 editingId={editingId}
+                 editText={editText}
                  handleTextClick={handleTextClick}
                  handleTextBlur={handleTextBlur}
                  handleKeyDown={handleKeyDown}
-                 editText={editText}
-                 editingId={editingId}
                  handleTextChange={handleTextChange}
                  saveBudgetChanges={saveBudgetChanges}
               />
           ) : <div className="loading-container">Loading budget...</div>;
         case 'analysis':
-          // Check roles and personnel for workload analysis
           return (roles && Array.isArray(personnel)) ? (
              <WorkloadAnalysis 
-                 roles={roles} // Using imported static roles
+                 roles={roles} 
                  personnel={personnel} 
-                 isUserAdmin={isUserAdmin}
+                 isUserAdmin={isUserAdmin} // Pass admin status
              />
           ) : <div className="loading-container">Loading analysis data...</div>;
        default:
-         return <div className="tab-content">Select a tab</div>; // Default content
+         return <div className="tab-content">Select a tab</div>; 
     }
   };
 
