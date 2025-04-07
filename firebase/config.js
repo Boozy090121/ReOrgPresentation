@@ -20,7 +20,7 @@ const auth = getAuth(app);
 
 // Admin credentials
 const ADMIN_CREDENTIALS = {
-  email: 'Admin',
+  email: 'kyle.prima@pci.com',
   password: 'Admin1234'
 };
 

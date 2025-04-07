@@ -283,6 +283,7 @@ a {
   border-radius: 4px;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
+  position: relative;
 }
 
 .role-content.drag-over {
@@ -439,4 +440,190 @@ a {
 .budget-total td {
   background-color: #f8f9fa;
   font-weight: bold;
+}
+
+/* Organization Structure Tab Styles */
+.structure-tab-content {
+  padding: 1rem; /* Add padding around the whole tab content */
+}
+
+.structure-container {
+  display: flex;
+  flex-direction: row; /* Explicitly set row direction */
+  gap: 2rem;
+  width: 100%; /* Ensure container takes full width */
+}
+
+.personnel-column {
+  flex: 0 0 300px; /* Fixed width for personnel */
+  min-width: 300px;
+  height: fit-content; /* Adjust height based on content */
+}
+
+.structure-column {
+  flex: 1; /* Takes remaining space */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.personnel-list {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  /* Remove fixed height if it was causing issues */
+}
+
+.personnel-list h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.personnel-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* Increased gap */
+}
+
+.personnel-card {
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  cursor: move;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.personnel-card:hover {
+  background: #e9ecef;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.personnel-card.draggable {
+  /* Styles for when dragging starts can be added here if needed */
+}
+
+.role-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.role-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem; /* Slightly reduced padding */
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.role-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.role-content {
+  padding: 1rem;
+  /* border-top removed as header has border-bottom */
+}
+
+.role-content h4 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: #555; /* Slightly darker */
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.role-content ul {
+  margin: 0 0 1rem 0;
+  padding-left: 1.2rem;
+}
+
+.role-content li {
+  margin-bottom: 0.5rem;
+  color: #444;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.assigned-personnel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.assigned-personnel h4 {
+  margin-bottom: 0.75rem;
+  color: #555;
+}
+
+.assigned-person {
+  padding: 0.5rem 0.75rem;
+  background: #e9ecef;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.personnel-name-input {
+  background: transparent;
+  border: none;
+  padding: 2px 4px; /* Added padding */
+  font-size: inherit;
+  color: inherit;
+  width: 100%;
+  cursor: text;
+  border-radius: 3px; /* Subtle rounding */
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.personnel-name-input:focus {
+  outline: none;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.assigned-person .personnel-name-input {
+  /* width: auto; */ /* Remove width auto if it was causing issues */
+  flex-grow: 1; /* Allow input to grow */
+}
+
+
+/* Drag and Drop Visual Feedback */
+.role-content.drop-zone {
+  transition: background-color 0.3s ease, border 0.3s ease; /* Add transition */
+  border: 2px dashed transparent; /* Start with transparent border */
+}
+
+.role-content.drag-over {
+  background-color: #e8f0fe; /* Light blue background when dragging over */
+  border-color: #a0c3ff; /* Blue dashed border */
+}
+
+.remove-assigned-button {
+  background: none;
+  border: none;
+  color: #dc3545; /* Red color */
+  cursor: pointer;
+  padding: 0 0 0 0.5rem; /* Space between name and button */
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  position: absolute; /* Position within the assigned-person div */
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.remove-assigned-button:hover {
+  opacity: 1;
 }
