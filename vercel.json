@@ -3,5 +3,14 @@
   "buildCommand": "next build",
   "devCommand": "next dev",
   "installCommand": "npm install",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_FIREBASE_API_KEY": "AIzaSyDtwEtmg-4XgHlsyu0KEzkY7U7u26Y_K5o",
+    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN": "reorg-presentation.firebaseapp.com",
+    "NEXT_PUBLIC_FIREBASE_PROJECT_ID": "reorg-presentation",
+    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET": "reorg-presentation.firebasestorage.app",
+    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "849557555127",
+    "NEXT_PUBLIC_FIREBASE_APP_ID": "1:849557555127:web:6d12110e5680506dff0a32",
+    "NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID": "G-RDM81N4BRQ"
+  }
 } 
