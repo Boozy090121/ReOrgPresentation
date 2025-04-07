@@ -289,3 +289,154 @@ a {
   background: #f8f9fa;
   border: 2px dashed #dee2e6;
 }
+
+.personnel-name-input {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+  width: 100%;
+  cursor: text;
+}
+
+.personnel-name-input:focus {
+  outline: none;
+  background: white;
+  padding: 0.25rem;
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.assigned-person .personnel-name-input {
+  width: auto;
+  min-width: 100px;
+}
+
+.structure-container {
+  display: flex;
+  gap: 2rem;
+  padding: 1rem;
+}
+
+.personnel-column {
+  flex: 0 0 300px;
+  min-width: 300px;
+}
+
+.structure-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.personnel-list {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  height: 100%;
+}
+
+.personnel-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.personnel-card {
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  cursor: move;
+  transition: all 0.2s;
+}
+
+.personnel-card:hover {
+  background: #e9ecef;
+  border-color: #dee2e6;
+}
+
+.role-card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.role-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #f8f9fa;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.role-header:hover {
+  background: #e9ecef;
+}
+
+.role-content {
+  padding: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.assigned-personnel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+}
+
+.assigned-person {
+  padding: 0.5rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+/* Budget Table Styles */
+.budget-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden; /* Ensures border-radius applies to corners */
+}
+
+.budget-table th, .budget-table td {
+  border: 1px solid #e9ecef;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.budget-table thead th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+}
+
+.budget-table tbody tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.budget-table tbody tr:hover {
+  background-color: #e9ecef;
+}
+
+.budget-category-title {
+  background-color: #e9ecef;
+  font-weight: bold;
+  color: #333;
+}
+
+.budget-subtotal td,
+.budget-total td {
+  background-color: #f8f9fa;
+  font-weight: bold;
+}

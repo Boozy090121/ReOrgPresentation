@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle, 
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save } from 'lucide-react';
-import { db, auth, setupAuthObserver } from '../firebase/config';
+import { db, auth, setupAuthObserver, isAdmin } from '../firebase/config';
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
@@ -245,7 +245,10 @@ export default function Dashboard() {
     if (draggedPerson) {
       try {
         // Update in Firebase
-        await updateDoc(doc(db, 'personnel', draggedPerson.id), { assignedRole: roleId });
+        await updateDoc(doc(db, 'personnel', draggedPerson.id), { 
+          assignedRole: roleId,
+          updatedAt: new Date()
+        });
         
         const updatedPersonnel = personnel.map(person => {
           if (person.id === draggedPerson.id) {
@@ -262,16 +265,45 @@ export default function Dashboard() {
     }
   };
 
+  const handleTextEdit = async (personId, field, value) => {
+    try {
+      // Update in Firebase
+      await updateDoc(doc(db, 'personnel', personId), { 
+        [field]: value,
+        updatedAt: new Date()
+      });
+      
+      const updatedPersonnel = personnel.map(person => {
+        if (person.id === personId) {
+          return { ...person, [field]: value };
+        }
+        return person;
+      });
+      
+      setPersonnel(updatedPersonnel);
+    } catch (error) {
+      console.error('Error updating text:', error);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoginError(''); // Clear previous errors
     try {
-      // Try to create or sign in the admin user
-      await createAdminUser();
+      // Sign in using the email and password from the modal state
+      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      // Auth state observer will handle setting the user state
       setShowLoginModal(false);
-      setLoginError('');
+      setLoginEmail(''); // Clear fields after successful login attempt
+      setLoginPassword('');
     } catch (error) {
       console.error('Login error:', error);
-      setLoginError('Invalid credentials');
+      // Provide more specific error feedback if possible
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        setLoginError('Invalid email or password.');
+      } else {
+        setLoginError('An error occurred during login.');
+      }
     }
   };
 
@@ -372,104 +404,130 @@ export default function Dashboard() {
       {/* Tab Content */}
       {activeTab === 'structure' && (
         <div className="organization-structure">
-          <div className="personnel-list">
-            <h3>Available Personnel</h3>
-            <div className="personnel-cards">
-              {personnel.filter(person => !person.assignedRole).map((person) => (
-                <div
-                  key={person.id}
-                  className="personnel-card draggable"
-                  draggable
-                  onDragStart={() => handleDragStart(person)}
-                >
-                  <span>{person.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="role-card">
-            <div className="role-header" onClick={() => toggleRole('director')}>
-              <h3>{roles.director.title}</h3>
-              <span>{expandedRoles.director ? <ChevronUp /> : <ChevronDown />}</span>
-            </div>
-            {expandedRoles.director && (
-              <div 
-                className="role-content"
-                onDragOver={handleDragOver}
-                onDrop={() => handleDrop('director')}
-              >
-                <h4>Responsibilities:</h4>
-                <ul>
-                  {roles.director.responsibilities.map((resp, index) => (
-                    <li key={index}>{resp}</li>
-                  ))}
-                </ul>
-                <div className="assigned-personnel">
-                  {personnel.filter(person => person.assignedRole === 'director').map(person => (
-                    <div key={person.id} className="assigned-person">
-                      {person.name}
+          <div className="structure-container">
+            <div className="personnel-column">
+              <div className="personnel-list">
+                <h3>Available Personnel</h3>
+                <div className="personnel-cards">
+                  {personnel.filter(person => !person.assignedRole).map((person) => (
+                    <div
+                      key={person.id}
+                      className="personnel-card draggable"
+                      draggable
+                      onDragStart={() => handleDragStart(person)}
+                    >
+                      <input
+                        type="text"
+                        value={person.name}
+                        onChange={(e) => handleTextEdit(person.id, 'name', e.target.value)}
+                        className="personnel-name-input"
+                      />
                     </div>
                   ))}
                 </div>
               </div>
-            )}
-          </div>
-
-          <div className="role-card">
-            <div className="role-header" onClick={() => toggleRole('systemsLead')}>
-              <h3>{roles.systemsLead.title}</h3>
-              <span>{expandedRoles.systemsLead ? <ChevronUp /> : <ChevronDown />}</span>
             </div>
-            {expandedRoles.systemsLead && (
-              <div 
-                className="role-content"
-                onDragOver={handleDragOver}
-                onDrop={() => handleDrop('systemsLead')}
-              >
-                <h4>Responsibilities:</h4>
-                <ul>
-                  {roles.systemsLead.responsibilities.map((resp, index) => (
-                    <li key={index}>{resp}</li>
-                  ))}
-                </ul>
-                <div className="assigned-personnel">
-                  {personnel.filter(person => person.assignedRole === 'systemsLead').map(person => (
-                    <div key={person.id} className="assigned-person">
-                      {person.name}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
 
-          <div className="role-card">
-            <div className="role-header" onClick={() => toggleRole('qualityManager')}>
-              <h3>{roles.qualityManager.title}</h3>
-              <span>{expandedRoles.qualityManager ? <ChevronUp /> : <ChevronDown />}</span>
-            </div>
-            {expandedRoles.qualityManager && (
-              <div 
-                className="role-content"
-                onDragOver={handleDragOver}
-                onDrop={() => handleDrop('qualityManager')}
-              >
-                <h4>Responsibilities:</h4>
-                <ul>
-                  {roles.qualityManager.responsibilities.map((resp, index) => (
-                    <li key={index}>{resp}</li>
-                  ))}
-                </ul>
-                <div className="assigned-personnel">
-                  {personnel.filter(person => person.assignedRole === 'qualityManager').map(person => (
-                    <div key={person.id} className="assigned-person">
-                      {person.name}
-                    </div>
-                  ))}
+            <div className="structure-column">
+              <div className="role-card">
+                <div className="role-header" onClick={() => toggleRole('director')}>
+                  <h3>{roles.director.title}</h3>
+                  <span>{expandedRoles.director ? <ChevronUp /> : <ChevronDown />}</span>
                 </div>
+                {expandedRoles.director && (
+                  <div 
+                    className="role-content"
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop('director')}
+                  >
+                    <h4>Responsibilities:</h4>
+                    <ul>
+                      {roles.director.responsibilities.map((resp, index) => (
+                        <li key={index}>{resp}</li>
+                      ))}
+                    </ul>
+                    <div className="assigned-personnel">
+                      {personnel.filter(person => person.assignedRole === 'director').map(person => (
+                        <div key={person.id} className="assigned-person">
+                          <input
+                            type="text"
+                            value={person.name}
+                            onChange={(e) => handleTextEdit(person.id, 'name', e.target.value)}
+                            className="personnel-name-input"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+
+              <div className="role-card">
+                <div className="role-header" onClick={() => toggleRole('systemsLead')}>
+                  <h3>{roles.systemsLead.title}</h3>
+                  <span>{expandedRoles.systemsLead ? <ChevronUp /> : <ChevronDown />}</span>
+                </div>
+                {expandedRoles.systemsLead && (
+                  <div 
+                    className="role-content"
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop('systemsLead')}
+                  >
+                    <h4>Responsibilities:</h4>
+                    <ul>
+                      {roles.systemsLead.responsibilities.map((resp, index) => (
+                        <li key={index}>{resp}</li>
+                      ))}
+                    </ul>
+                    <div className="assigned-personnel">
+                      {personnel.filter(person => person.assignedRole === 'systemsLead').map(person => (
+                        <div key={person.id} className="assigned-person">
+                          <input
+                            type="text"
+                            value={person.name}
+                            onChange={(e) => handleTextEdit(person.id, 'name', e.target.value)}
+                            className="personnel-name-input"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="role-card">
+                <div className="role-header" onClick={() => toggleRole('qualityManager')}>
+                  <h3>{roles.qualityManager.title}</h3>
+                  <span>{expandedRoles.qualityManager ? <ChevronUp /> : <ChevronDown />}</span>
+                </div>
+                {expandedRoles.qualityManager && (
+                  <div 
+                    className="role-content"
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop('qualityManager')}
+                  >
+                    <h4>Responsibilities:</h4>
+                    <ul>
+                      {roles.qualityManager.responsibilities.map((resp, index) => (
+                        <li key={index}>{resp}</li>
+                      ))}
+                    </ul>
+                    <div className="assigned-personnel">
+                      {personnel.filter(person => person.assignedRole === 'qualityManager').map(person => (
+                        <div key={person.id} className="assigned-person">
+                          <input
+                            type="text"
+                            value={person.name}
+                            onChange={(e) => handleTextEdit(person.id, 'name', e.target.value)}
+                            className="personnel-name-input"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -488,15 +546,50 @@ export default function Dashboard() {
 
       {activeTab === 'budget' && (
         <div>
-          {/* Budget Content */}
           <table className="budget-table">
             <thead>
               <tr>
                 <th>Category</th>
-                <th>Amount</th>
+                <th>Role</th>
+                <th>Count</th>
+                <th>Cost Range</th>
               </tr>
             </thead>
             <tbody>
+              {/* Iterate over budgetData object entries */}
+              {Object.entries(budgetData).map(([categoryKey, categoryData]) => (
+                // Skip the 'total' key for detailed rows
+                categoryKey !== 'total' && (
+                  <React.Fragment key={categoryKey}>
+                    {/* Render category title row */}
+                    <tr>
+                      <td colSpan="4" className="budget-category-title">{categoryData.title}</td>
+                    </tr>
+                    {/* Render roles within the category */}
+                    {categoryData.roles.map((role, index) => (
+                      <tr key={`${categoryKey}-${index}`}>
+                        <td></td> {/* Empty cell for category span */}
+                        <td>{role.title}</td>
+                        <td>{role.count}</td>
+                        <td>{role.costRange}</td>
+                      </tr>
+                    ))}
+                    {/* Render subtotal row */}
+                    <tr className="budget-subtotal">
+                      <td></td> {/* Empty cell */}
+                      <td><strong>Subtotal</strong></td>
+                      <td><strong>{categoryData.subtotal.count}</strong></td>
+                      <td><strong>{categoryData.subtotal.costRange}</strong></td>
+                    </tr>
+                  </React.Fragment>
+                )
+              ))}
+              {/* Render Total row */}
+              <tr className="budget-total">
+                <td colSpan="2"><strong>Total</strong></td>
+                <td><strong>{budgetData.total.count}</strong></td>
+                <td><strong>{budgetData.total.costRange}</strong></td>
+              </tr>
               {budgetData.map((item) => (
                 <tr key={item.id}>
                   <td>{item.category}</td>
