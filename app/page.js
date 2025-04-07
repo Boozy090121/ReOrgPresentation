@@ -44,7 +44,7 @@ const colors = {
   white: '#FFFFFF',       // White
 };
 
-// Updated roles to include the new Functional Testing Group
+// Full roles data (ensure detailedResponsibilities are complete)
 const roles = {
   director: {
     title: "Quality Director",
@@ -56,20 +56,82 @@ const roles = {
       "Budget and resource management",
       "Direct supervision of 4 reports (3 QMs + Systems Lead)"
     ],
-    salary: "$1,000,000",
+    detailedResponsibilities: {
+        "Strategic Leadership": [
+          "Define quality vision and strategy for the focus factory",
+          "Establish quality objectives aligned with business goals",
+          "Implement continuous improvement initiatives",
+          "Drive quality culture throughout organization",
+          "Interface with senior client leadership"
+        ],
+        "Quality Oversight": [
+          "Final approval of major deviations and CAPAs",
+          "Review and approval of validation protocols/reports",
+          "Oversight of quality metrics and trending",
+          "Management of critical quality events",
+          "Strategic input on regulatory submissions"
+        ],
+        "Client Management": [
+          "Represent quality in high-level client meetings",
+          "Lead escalation discussions with client quality leaders",
+          "Review and approve quality agreements",
+          "Participate in strategic client planning sessions",
+          "Handle executive-level quality communications"
+        ],
+        "Resource Management": [
+          "Develop and manage quality department budget",
+          "Strategic resource allocation across client teams",
+          "Performance management of direct reports",
+          "Long-term capacity planning",
+          "Career development of quality leadership team"
+        ]
+    },
+    color: colors.light,
+    salary: "$150,000 - $180,000", // Updated from previous $1M
     department: "Quality"
   },
   systemsLead: {
     title: "Quality Systems Lead",
     icon: <ClipboardCheck size={24} />,
     responsibilities: [
-      "Maintain quality management system architecture",
-      "Develop and maintain centralized metrics dashboards",
-      "Establish standardized training requirements and materials",
-      "Provide technical systems support for all teams",
-      "Analyze organization-wide quality trends",
-      "Support onboarding with standard quality systems training"
+        "Maintain quality management system architecture",
+        "Develop and maintain centralized metrics dashboards",
+        "Establish standardized training requirements and materials",
+        "Provide technical systems support for all teams",
+        "Analyze organization-wide quality trends",
+        "Support onboarding with standard quality systems training"
     ],
+    detailedResponsibilities: {
+        "Quality System Management": [
+          "Administer MasterControl EQMS configuration",
+          "Develop and update quality system procedures",
+          "Maintain document hierarchies and templates",
+          "Drive system improvements and upgrades",
+          "Ensure alignment with regulatory requirements"
+        ],
+        "Metrics & Analytics": [
+          "Design quality KPIs for all client teams",
+          "Create and maintain Power BI dashboards",
+          "Generate monthly quality metrics packages",
+          "Identify adverse trends across quality data",
+          "Recommend improvements based on data analysis"
+        ],
+        "Training System Management": [
+          "Establish training curricula for quality roles",
+          "Develop standard training materials",
+          "Maintain training requirements matrix",
+          "Track training completion and effectiveness",
+          "Support new employee onboarding processes"
+        ],
+        "System Support": [
+          "Troubleshoot quality system issues",
+          "Interface between quality and IT departments",
+          "Research and recommend technology solutions",
+          "Provide support for system audits",
+          "Train staff on system use and requirements"
+        ]
+    },
+    color: colors.light,
     salary: "$90,000 - $105,000",
     department: "Quality"
   },
@@ -77,14 +139,52 @@ const roles = {
     title: "Quality Manager",
     icon: <Users size={24} />,
     responsibilities: [
-      "Oversee two client accounts",
-      "Approve major deviations/complaints",
-      "Lead client meetings and manage escalations",
-      "Coach team members and manage their development",
-      "Review and approve complex quality documents",
-      "Manage OJT program for their teams",
-      "Generate and analyze client-specific metrics"
+        "Oversee two client accounts",
+        "Approve major deviations/complaints",
+        "Lead client meetings and manage escalations",
+        "Coach team members and manage their development",
+        "Review and approve complex quality documents",
+        "Manage OJT program for their teams",
+        "Generate and analyze client-specific metrics"
     ],
+    detailedResponsibilities: {
+        "Client Account Management": [
+          "Serve as primary quality contact for 2 client accounts",
+          "Manage client quality expectations and deliverables",
+          "Lead regular client quality review meetings",
+          "Coordinate client audits and inspections",
+          "Ensure client-specific requirements are met"
+        ],
+        "Quality Oversight": [
+          "Review and approve significant deviations",
+          "Approve CAPAs and effectiveness checks",
+          "Oversee complaint investigations and responses",
+          "Conduct periodic quality system reviews",
+          "Ensure compliance with quality agreements"
+        ],
+        "Team Management": [
+          "Supervise 8-10 quality professionals",
+          "Conduct performance reviews and development planning",
+          "Manage team workload and assignments",
+          "Coach staff on technical and soft skills",
+          "Ensure adequate training and qualification"
+        ],
+        "OJT Management": [
+          "Oversee OJT program implementation",
+          "Track completion and certification status",
+          "Verify staff competency for assigned tasks",
+          "Identify and address training gaps",
+          "Ensure consistency in quality practices"
+        ],
+        "Client-Specific Metrics": [
+          "Review and analyze client quality data",
+          "Present metrics in client meetings",
+          "Identify opportunities for improvement",
+          "Drive corrective actions based on trends",
+          "Report quality performance to leadership"
+        ]
+    },
+    color: colors.light,
     salary: "$126,000 - $158,000",
     department: "Quality"
   },
@@ -92,14 +192,52 @@ const roles = {
     title: "Senior Quality Specialist",
     icon: <Clipboard size={24} />,
     responsibilities: [
-      "Primary client-facing quality representative",
-      "Review complex batch records",
-      "Approve minor deviations",
-      "Lead continuous improvement initiatives",
-      "Participate in client audits",
-      "Provide technical guidance to quality specialists",
-      "Coordinate between day and night shifts"
+        "Primary client-facing quality representative",
+        "Review complex batch records",
+        "Approve minor deviations",
+        "Lead continuous improvement initiatives",
+        "Participate in client audits",
+        "Provide technical guidance to quality specialists",
+        "Coordinate between day and night shifts"
     ],
+    detailedResponsibilities: {
+        "Client Interaction": [
+          "Represent quality in routine client meetings",
+          "Communicate quality event information to client",
+          "Respond to client technical inquiries",
+          "Present quality data and trending",
+          "Support client change management activities"
+        ],
+        "Batch Record Review": [
+          "Final review of complex batch records",
+          "Resolution of batch record discrepancies",
+          "Approval of completed batch documentation",
+          "Identification of documentation improvements",
+          "Determination of batch disposition"
+        ],
+        "Quality Event Management": [
+          "Approve minor deviations and discrepancies",
+          "Conduct technical reviews of investigations",
+          "Approve level 1 CAPAs and effectiveness checks",
+          "Monitor implementation of corrective actions",
+          "Track recurring quality events"
+        ],
+        "Continuous Improvement": [
+          "Identify process improvement opportunities",
+          "Lead quality improvement initiatives",
+          "Coordinate cross-functional improvements",
+          "Implement best practices from other clients",
+          "Track effectiveness of improvement projects"
+        ],
+        "Team Leadership": [
+          "Provide technical guidance to specialists",
+          "Serve as shift lead for day operations",
+          "Train new quality team members",
+          "Coordinate with night shift associates",
+          "Serve as backup for Quality Manager"
+        ]
+    },
+    color: colors.light,
     salary: "$90,000 - $110,000",
     department: "Quality"
   },
@@ -107,14 +245,52 @@ const roles = {
     title: "Quality Specialist",
     icon: <Clipboard size={24} />,
     responsibilities: [
-      "Review batch records",
-      "Document minor events/deviations",
-      "Process batch record updates",
-      "Implement continuous improvements",
-      "Support client calls",
-      "Provide technical support to production",
-      "Monitor in-process quality criteria"
+        "Review batch records",
+        "Document minor events/deviations",
+        "Process batch record updates",
+        "Implement continuous improvements",
+        "Support client calls",
+        "Provide technical support to production",
+        "Monitor in-process quality criteria"
     ],
+    detailedResponsibilities: {
+        "Batch Record Processing": [
+          "Perform detailed batch record reviews",
+          "Identify and document batch record discrepancies",
+          "Verify critical processing parameters",
+          "Ensure compliance with established procedures",
+          "Compile batch history documentation"
+        ],
+        "Event Documentation": [
+          "Document minor deviations and events",
+          "Conduct initial investigation of quality events",
+          "Draft responses to quality observations",
+          "Track event closure and due dates",
+          "Prepare event summaries for trending"
+        ],
+        "Document Management": [
+          "Process updates to batch records",
+          "Review and comment on SOP drafts",
+          "Maintain client-specific document matrices",
+          "Verify document accuracy and completeness",
+          "Support document change control process"
+        ],
+        "Production Support": [
+          "Provide quality guidance to production staff",
+          "Perform in-process quality checks",
+          "Support line clearance activities",
+          "Verify critical processing steps",
+          "Monitor production quality in real-time"
+        ],
+        "Client Support": [
+          "Participate in routine client calls",
+          "Provide quality data for client reports",
+          "Support client audit preparations",
+          "Respond to routine client questions",
+          "Document client-specific requirements"
+        ]
+    },
+    color: colors.light,
     salary: "$70,000 - $85,000",
     department: "Quality"
   },
@@ -122,14 +298,52 @@ const roles = {
     title: "Quality Specialist, Complaints",
     icon: <AlertCircle size={24} />,
     responsibilities: [
-      "Manage complaint intake and documentation",
-      "Perform complaint investigations",
-      "Coordinate resolution activities",
-      "Draft client responses",
-      "Implement complaint-related CAPAs",
-      "Track complaint metrics and trends",
-      "Interface with clients on complaint status"
+        "Manage complaint intake and documentation",
+        "Perform complaint investigations",
+        "Coordinate resolution activities",
+        "Draft client responses",
+        "Implement complaint-related CAPAs",
+        "Track complaint metrics and trends",
+        "Interface with clients on complaint status"
     ],
+    detailedResponsibilities: {
+        "Complaint Intake": [
+          "Receive and document client complaints",
+          "Perform initial assessment of complaint severity",
+          "Assign complaint classification and categories",
+          "Determine regulatory reporting requirements",
+          "Initialize complaint tracking in MasterControl"
+        ],
+        "Investigation Management": [
+          "Develop complaint investigation plan",
+          "Coordinate cross-functional investigation team",
+          "Analyze product samples and returned materials",
+          "Document investigation findings",
+          "Determine root cause of complaint"
+        ],
+        "Risk Assessment": [
+          "Evaluate health hazard implications",
+          "Assess potential for similar occurrences",
+          "Determine if field action is warranted",
+          "Document risk evaluation findings",
+          "Coordinate with regulatory when needed"
+        ],
+        "Client Communication": [
+          "Draft formal responses to client complaints",
+          "Provide regular status updates to clients",
+          "Present investigation findings to client",
+          "Address client follow-up questions",
+          "Coordinate complaint closure with client"
+        ],
+        "CAPA Implementation": [
+          "Develop CAPAs based on investigations",
+          "Track implementation of corrective actions",
+          "Verify effectiveness of implemented actions",
+          "Document CAPA closure evidence",
+          "Trend similar complaints for systemic issues"
+        ]
+    },
+    color: colors.light,
     salary: "$70,000 - $85,000",
     department: "Quality"
   },
@@ -137,14 +351,45 @@ const roles = {
     title: "Associate Quality Specialist",
     icon: <Clipboard size={24} />,
     responsibilities: [
-      "Generate batch records",
-      "Perform initial batch record reviews",
-      "Maintain quality documentation",
-      "Support quality data collection",
-      "Assist with basic investigations",
-      "Document quality observations",
-      "Support floor operations as needed"
+        "Generate batch records",
+        "Perform initial batch record reviews",
+        "Maintain quality documentation",
+        "Support quality data collection",
+        "Assist with basic investigations",
+        "Document quality observations",
+        "Support floor operations as needed"
     ],
+    detailedResponsibilities: {
+        "Batch Record Generation": [
+          "Create batch records for production runs",
+          "Ensure correct template and revision is used",
+          "Populate batch-specific information",
+          "Verify completeness of batch documentation",
+          "Stage batch records for production use"
+        ],
+        "Documentation Review": [
+          "Perform initial batch record reviews",
+          "Flag discrepancies for specialist review",
+          "Verify completeness of documentation",
+          "Check data entry and calculations",
+          "Organize batch documentation packages"
+        ],
+        "Data Collection": [
+          "Gather quality data for metrics reporting",
+          "Compile batch release information",
+          "Document in-process quality checks",
+          "Maintain monitoring logs and records",
+          "Support data entry in quality systems"
+        ],
+        "Quality Support": [
+          "Assist with basic investigations",
+          "Support floor quality audits",
+          "Document quality observations",
+          "Participate in quality event documentation",
+          "Provide administrative support to quality team"
+        ]
+    },
+    color: colors.light,
     salary: "$55,000 - $70,000",
     department: "Quality"
   },
@@ -152,14 +397,52 @@ const roles = {
     title: "Associate Quality Specialist (Off-Shift)",
     icon: <Clipboard size={24} />,
     responsibilities: [
-      "Cover all clients during night shifts",
-      "Respond to production quality issues",
-      "Perform critical in-process checks",
-      "Document quality observations",
-      "Escalate issues to day shift",
-      "Support manufacturing operations",
-      "Ensure compliance to procedures during night production"
+        "Cover all clients during night shifts",
+        "Respond to production quality issues",
+        "Perform critical in-process checks",
+        "Document quality observations",
+        "Escalate issues to day shift",
+        "Support manufacturing operations",
+        "Ensure compliance to procedures during night production"
     ],
+    detailedResponsibilities: {
+        "Shift Coverage": [
+          "Provide quality coverage across all production areas",
+          "Monitor 12-hour night shift operations",
+          "Cover multiple client productions simultaneously",
+          "Maintain communication with production leads",
+          "Support weekend operations as scheduled"
+        ],
+        "Quality Monitoring": [
+          "Perform critical in-process quality checks",
+          "Verify compliance to manufacturing procedures",
+          "Document quality observations in real-time",
+          "Monitor environmental conditions",
+          "Perform line clearance verifications"
+        ],
+        "Event Response": [
+          "Respond to quality events during off-hours",
+          "Document deviations and discrepancies",
+          "Initiate containment actions when needed",
+          "Escalate critical issues to on-call personnel",
+          "Provide initial assessment of quality impact"
+        ],
+        "Documentation": [
+          "Complete quality check documentation",
+          "Verify batch record entries for shift activities",
+          "Document manufacturing observations",
+          "Prepare shift handover reports",
+          "Maintain equipment monitoring logs"
+        ],
+        "Cross-Client Support": [
+          "Apply knowledge across multiple client products",
+          "Adapt to different client requirements",
+          "Prioritize quality events across clients",
+          "Navigate various client documentation",
+          "Support multiple production lines simultaneously"
+        ]
+    },
+    color: colors.light,
     salary: "$55,000 - $70,000 (plus shift differential)",
     department: "Quality"
   },
@@ -167,14 +450,52 @@ const roles = {
     title: "Lab Manager",
     icon: <Beaker size={24} />,
     responsibilities: [
-      "Oversee functional testing laboratory operations",
-      "Manage testing equipment and calibration schedules",
-      "Develop and maintain testing protocols",
-      "Supervise lab personnel and assign workload",
-      "Review and approve test results and reports",
-      "Coordinate with clients on test requirements",
-      "Ensure compliance with quality standards"
+        "Oversee functional testing laboratory operations",
+        "Manage testing equipment and calibration schedules",
+        "Develop and maintain testing protocols",
+        "Supervise lab personnel and assign workload",
+        "Review and approve test results and reports",
+        "Coordinate with clients on test requirements",
+        "Ensure compliance with quality standards"
     ],
+    detailedResponsibilities: {
+        "Lab Operations": [
+          "Oversee day-to-day laboratory activities",
+          "Establish testing priorities and schedules",
+          "Manage lab budget and resources",
+          "Ensure lab safety and compliance",
+          "Implement laboratory efficiency improvements"
+        ],
+        "Equipment Management": [
+          "Maintain Zwick and Instron testing equipment",
+          "Schedule equipment calibration and maintenance",
+          "Qualify new testing equipment",
+          "Troubleshoot equipment issues",
+          "Maintain equipment qualification documentation"
+        ],
+        "Protocol Development": [
+          "Create client-specific testing protocols",
+          "Validate test methods for autoinjector products",
+          "Develop technical procedures for lab operations",
+          "Review and update testing procedures",
+          "Establish testing acceptance criteria"
+        ],
+        "Personnel Management": [
+          "Supervise lab technicians and specialists",
+          "Conduct performance evaluations",
+          "Coordinate training and development",
+          "Assign projects and testing activities",
+          "Manage workload distribution"
+        ],
+        "Quality Oversight": [
+          "Review and approve test reports",
+          "Ensure data integrity in testing activities",
+          "Investigate out-of-specification results",
+          "Implement corrective actions for lab issues",
+          "Prepare for lab audits and inspections"
+        ]
+    },
+    color: colors.light,
     salary: "$95,000 - $120,000",
     department: "Testing"
   },
@@ -182,14 +503,52 @@ const roles = {
     title: "Senior Lab Technician",
     icon: <Beaker size={24} />,
     responsibilities: [
-      "Perform complex functional testing on autoinjectors",
-      "Analyze test data and prepare technical reports",
-      "Calibrate and maintain testing equipment",
-      "Train and mentor junior technicians",
-      "Investigate testing anomalies and discrepancies",
-      "Develop and optimize testing methodologies",
-      "Support test protocol development"
+        "Perform complex functional testing on autoinjectors",
+        "Analyze test data and prepare technical reports",
+        "Calibrate and maintain testing equipment",
+        "Train and mentor junior technicians",
+        "Investigate testing anomalies and discrepancies",
+        "Develop and optimize testing methodologies",
+        "Support test protocol development"
     ],
+    detailedResponsibilities: {
+        "Advanced Testing": [
+          "Conduct specialized testing on autoinjectors",
+          "Perform complex force profile analysis on Zwick/Instron",
+          "Execute method transfers and validations",
+          "Conduct stability testing evaluations",
+          "Perform product complaint investigations"
+        ],
+        "Data Analysis": [
+          "Perform statistical analysis of test data",
+          "Prepare comprehensive test reports",
+          "Evaluate trends in test results",
+          "Document test observations and anomalies",
+          "Present testing results to clients and management"
+        ],
+        "Equipment Expertise": [
+          "Serve as subject matter expert for testing equipment",
+          "Calibrate Zwick and Instron testing machines",
+          "Troubleshoot and resolve equipment issues",
+          "Develop equipment operation procedures",
+          "Train others on equipment operation"
+        ],
+        "Method Development": [
+          "Optimize testing methods for efficiency",
+          "Develop specialized test fixtures and tools",
+          "Validate new testing approaches",
+          "Support creation of testing standards",
+          "Document testing procedures and methods"
+        ],
+        "Team Leadership": [
+          "Provide technical guidance to lab technicians",
+          "Train new lab personnel on testing procedures",
+          "Review work of junior technicians",
+          "Serve as backup for Lab Manager",
+          "Lead technical projects within the lab"
+        ]
+    },
+    color: colors.light,
     salary: "$75,000 - $90,000",
     department: "Testing"
   },
@@ -197,14 +556,52 @@ const roles = {
     title: "Lab Technician",
     icon: <Beaker size={24} />,
     responsibilities: [
-      "Conduct functional testing on autoinjectors using Zwick/Instron",
-      "Record and document test results",
-      "Prepare test samples and equipment",
-      "Perform routine equipment maintenance",
-      "Follow established testing protocols",
-      "Document testing activities and observations",
-      "Support laboratory operations"
+        "Conduct functional testing on autoinjectors using Zwick/Instron",
+        "Record and document test results",
+        "Prepare test samples and equipment",
+        "Perform routine equipment maintenance",
+        "Follow established testing protocols",
+        "Document testing activities and observations",
+        "Support laboratory operations"
     ],
+    detailedResponsibilities: {
+        "Functional Testing": [
+          "Perform break-loose and extrusion force testing",
+          "Conduct activation force measurements",
+          "Test autoinjector needle extension",
+          "Measure injection time and delivered volume",
+          "Perform dose accuracy testing"
+        ],
+        "Data Recording": [
+          "Document test results in laboratory systems",
+          "Maintain accurate testing records",
+          "Generate basic data reports",
+          "Record equipment parameters",
+          "Document test deviations"
+        ],
+        "Equipment Operation": [
+          "Operate Zwick and Instron testing equipment",
+          "Set up test fixtures and attachments",
+          "Perform routine equipment calibration checks",
+          "Clean and maintain testing equipment",
+          "Report equipment malfunctions"
+        ],
+        "Sample Management": [
+          "Prepare test samples according to protocols",
+          "Track sample inventory and storage",
+          "Document sample history and condition",
+          "Handle samples according to procedures",
+          "Dispose of samples properly after testing"
+        ],
+        "Laboratory Support": [
+          "Maintain laboratory cleanliness and organization",
+          "Inventory and order laboratory supplies",
+          "Support laboratory documentation system",
+          "Assist with equipment qualification activities",
+          "Support laboratory audits and inspections"
+        ]
+    },
+    color: colors.light,
     salary: "$55,000 - $70,000",
     department: "Testing"
   },
@@ -212,47 +609,203 @@ const roles = {
     title: "Associate Lab Technician",
     icon: <Beaker size={24} />,
     responsibilities: [
-      "Assist with basic functional testing procedures",
-      "Prepare test samples and equipment setup",
-      "Record test data under supervision",
-      "Maintain laboratory cleanliness and organization",
-      "Support inventory management",
-      "Perform basic equipment maintenance",
-      "Assist senior lab personnel as needed"
+        "Assist with basic functional testing procedures",
+        "Prepare test samples and equipment setup",
+        "Record test data under supervision",
+        "Maintain laboratory cleanliness and organization",
+        "Support inventory management",
+        "Perform basic equipment maintenance",
+        "Assist senior lab personnel as needed"
     ],
+    detailedResponsibilities: {
+        "Testing Support": [
+          "Assist with autoinjector testing procedures",
+          "Set up basic test equipment under supervision",
+          "Record data during testing activities",
+          "Follow established testing workflows",
+          "Support sample preparation activities"
+        ],
+        "Laboratory Maintenance": [
+          "Clean and organize laboratory workspaces",
+          "Maintain testing fixtures and tools",
+          "Clean equipment after use",
+          "Dispose of waste according to procedures",
+          "Restock laboratory supplies"
+        ],
+        "Data Entry": [
+          "Enter test data into laboratory systems",
+          "Assist with organizing test documentation",
+          "File testing records and reports",
+          "Maintain basic testing logs",
+          "Support data verification activities"
+        ],
+        "Equipment Care": [
+          "Perform basic maintenance on lab equipment",
+          "Clean testing components and fixtures",
+          "Check equipment supplies and consumables",
+          "Report equipment issues to senior staff",
+          "Organize equipment accessories and parts"
+        ],
+        "General Support": [
+          "Assist with sample receipt and processing",
+          "Support inventory checks and ordering",
+          "Help with laboratory administrative tasks",
+          "Prepare materials for testing activities",
+          "Assist with training documentation"
+        ]
+    },
+    color: colors.light,
     salary: "$45,000 - $55,000",
     department: "Testing"
   }
 };
 
-const budgetData = {
-  leadership: {
-    title: "Leadership",
-    roles: [
-      { title: "Quality Director", count: 1, costRange: "$150,000 - $180,000" },
-      { title: "Quality Managers", count: 3, costRange: "$378,000 - $474,000" },
-      { title: "Quality Systems Lead", count: 1, costRange: "$90,000 - $105,000" }
-    ],
-    subtotal: { count: 5, costRange: "$618,000 - $759,000" }
+// Full implementation timeline data (ensure activities are complete)
+const timelineInitialData = [
+  { id: 'phase1', phase: "Phase 1: Planning & Preparation", timeframe: "Month 1 (April)", 
+    activities: [
+        "Finalize organization structure and job descriptions",
+        "Develop transition plan for existing staff",
+        "Identify training needs and create development plans",
+        "Create communication plan for clients and internal stakeholders",
+        "Prepare transition documentation"
+    ]
   },
-  specialists: {
-    title: "Specialists",
-    roles: [
-      { title: "Senior Quality Specialists", count: 6, costRange: "$540,000 - $660,000" },
-      { title: "Quality Specialists", count: 8, costRange: "$560,000 - $680,000" },
-      { title: "Quality Specialists, Complaints", count: 6, costRange: "$420,000 - $510,000" }
-    ],
-    subtotal: { count: 20, costRange: "$1,520,000 - $1,850,000" }
+  { id: 'phase2', phase: "Phase 2: Initial Implementation", timeframe: "Month 2 (May 1st Deadline)", 
+    activities: [
+        "Transition existing staff to new roles and responsibilities",
+        "Fill critical open positions",
+        "Conduct initial training for all team members",
+        "Implement new client team structure",
+        "Establish metrics dashboards and reporting"
+    ]
   },
-  associates: {
-    title: "Associates",
-    roles: [
-      { title: "Associate QA Specialists (Day)", count: 6, costRange: "$330,000 - $420,000" },
-      { title: "Associate QA Specialists (Night)", count: 3, costRange: "$165,000 - $210,000" }
-    ],
-    subtotal: { count: 9, costRange: "$495,000 - $630,000" }
+  { id: 'phase3', phase: "Phase 3: Rollout & Stabilization", timeframe: "Months 5-6", 
+    activities: [
+        "Complete training and onboarding for all staff",
+        "Implement new shift coverage model",
+        "Standardize client communication processes",
+        "Launch all quality metrics tracking",
+        "Validate new quality workflows"
+    ]
   },
-  total: { count: 34, costRange: "$2,633,000 - $3,239,000" }
+  { id: 'phase4', phase: "Phase 4: Optimization", timeframe: "Months 7-9", 
+    activities: [
+        "Review and refine organization based on initial feedback",
+        "Develop advanced training for specialized roles",
+        "Optimize client-specific processes",
+        "Implement continuous improvement initiatives",
+        "Conduct post-implementation assessment"
+    ]
+  }
+];
+
+// Full staffing summary data (ensure roles/subtotals are complete)
+const staffingSummaryInitialData = {
+  leadership: { 
+    title: "Leadership", 
+    roles: [
+        { title: "Quality Director", count: 1, costRange: "$150,000 - $180,000" },
+        { title: "Quality Managers", count: 3, costRange: "$378,000 - $474,000" },
+        { title: "Quality Systems Lead", count: 1, costRange: "$90,000 - $105,000" },
+        { title: "Lab Manager", count: 1, costRange: "$95,000 - $120,000" }
+    ], 
+    subtotal: { count: 6, costRange: "$713,000 - $879,000" } 
+  },
+  specialists: { 
+    title: "Specialists", 
+    roles: [
+        { title: "Senior Quality Specialists", count: 6, costRange: "$540,000 - $660,000" },
+        { title: "Quality Specialists", count: 8, costRange: "$560,000 - $680,000" },
+        { title: "Quality Specialists, Complaints", count: 6, costRange: "$420,000 - $510,000" },
+        { title: "Senior Lab Technicians", count: 2, costRange: "$150,000 - $180,000" }
+    ], 
+    subtotal: { count: 22, costRange: "$1,670,000 - $2,030,000" } 
+  },
+  associates: { 
+    title: "Associates", 
+    roles: [
+        { title: "Associate QA Specialists (Day)", count: 6, costRange: "$330,000 - $420,000" },
+        { title: "Associate QA Specialists (Night)", count: 3, costRange: "$165,000 - $210,000" },
+        { title: "Lab Technicians", count: 4, costRange: "$220,000 - $280,000" },
+        { title: "Associate Lab Technicians", count: 2, costRange: "$90,000 - $110,000" }
+    ], 
+    subtotal: { count: 15, costRange: "$805,000 - $1,020,000" } 
+  },
+  total: { count: 43, costRange: "$3,188,000 - $3,929,000" }
+};
+
+// Helper component for displaying a role card in the hierarchy
+const RoleCardDisplay = ({ roleKey, roleData, personnel, isUserAdmin, expandedRoles, toggleRole, 
+                           handleDragOver, handleDropOnRole, handleDragEnter, handleDragLeave, 
+                           handleDragStart, handleDragEnd, handleTextClick, handleTextBlur, handleKeyDown, 
+                           editText, editingId, unassignPerson }) => {
+
+    const assigned = personnel.filter(p => p.assignedRole === roleKey);
+
+    return (
+        <div key={roleKey} className={`role-card role-card-${roleKey}`}> {/* Add roleKey specific class */}
+            <div className="role-header" onClick={() => toggleRole(roleKey)}>
+                <div className="role-header-title">
+                    {roleData.icon}
+                    <h3>{roleData.title}</h3>
+                </div>
+                <span>{expandedRoles[roleKey] ? <ChevronUp /> : <ChevronDown />}</span>
+            </div>
+            {expandedRoles[roleKey] && (
+                <div
+                    className="role-content drop-zone"
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDropOnRole(roleKey)}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                >
+                    <h4>Responsibilities:</h4>
+                    <ul>{roleData.responsibilities.map((resp, index) => <li key={index}>{resp}</li>)}</ul>
+                    <div className="role-details">
+                        <p><strong>Salary:</strong> {roleData.salary}</p>
+                        <p><strong>Department:</strong> {roleData.department}</p>
+                    </div>
+                    <div className="assigned-personnel">
+                        <h4>Assigned Personnel:</h4>
+                        {assigned.map(person => (
+                            <div key={person.id} className="assigned-person draggable"
+                                draggable={isUserAdmin}
+                                onDragStart={(e) => handleDragStart(e, person)}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <div
+                                    data-edit-id={`person-${person.id}`}
+                                    className="editable-text personnel-name"
+                                    contentEditable={isUserAdmin}
+                                    suppressContentEditableWarning={true}
+                                    onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault() }}
+                                    onClick={() => isUserAdmin && handleTextClick(`person-${person.id}`, person.name)}
+                                    onBlur={() => handleTextBlur(`person-${person.id}`)}
+                                    onKeyDown={(e) => handleKeyDown(e, `person-${person.id}`)}
+                                    onInput={handleTextChange} // Make sure handleTextChange is defined
+                                >
+                                    {editingId === `person-${person.id}` ? editText : person.name}
+                                </div>
+                                {isUserAdmin && (
+                                    <button
+                                        onClick={() => unassignPerson(person.id)}
+                                        className="unassign-button"
+                                        title="Unassign Role"
+                                    >
+                                        <XCircle size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {assigned.length === 0 && (
+                            <p className="empty-list-message">Drag available personnel here.</p>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 // Main Dashboard component
@@ -352,8 +905,8 @@ export default function Dashboard() {
         if (docSnap.exists()) {
           setTimeline(docSnap.data().phases || []);
         } else {
-          await setDoc(docRef, { phases: timelineData });
-          setTimeline(timelineData);
+          await setDoc(docRef, { phases: timelineInitialData });
+          setTimeline(timelineInitialData);
           console.log("Timeline document created.");
         }
         console.log("Timeline loaded:", timeline.length, "phases");
@@ -370,8 +923,8 @@ export default function Dashboard() {
         if (docSnap.exists()) {
           setStaffingSummary(docSnap.data().summary || {});
         } else {
-          await setDoc(docRef, { summary: budgetData });
-          setStaffingSummary(budgetData);
+          await setDoc(docRef, { summary: staffingSummaryInitialData });
+          setStaffingSummary(staffingSummaryInitialData);
           console.log("Budget document created.");
         }
         console.log("Budget loaded:", Object.keys(staffingSummary).length, "categories");
@@ -586,8 +1139,8 @@ export default function Dashboard() {
             const phaseIndex = parseInt(parts[1]);
             const field = parts[2];
             if (!timeline || !timeline[phaseIndex]) return '';
-            if (field === 'phase') return timeline[phaseIndex].title;
-            if (field === 'timeframe') return timeline[phaseIndex].description;
+            if (field === 'phase') return timeline[phaseIndex].phase;
+            if (field === 'timeframe') return timeline[phaseIndex].timeframe;
             if (field === 'activity') {
                 const activityIndex = parseInt(parts[3]);
                 return timeline[phaseIndex].activities?.[activityIndex] || '';
@@ -621,8 +1174,8 @@ export default function Dashboard() {
             setTimeline(prev => {
                 const updated = [...prev];
                 if (!updated[phaseIndex]) return prev;
-                if (field === 'phase') updated[phaseIndex].title = newText;
-                else if (field === 'timeframe') updated[phaseIndex].description = newText;
+                if (field === 'phase') updated[phaseIndex].phase = newText;
+                else if (field === 'timeframe') updated[phaseIndex].timeframe = newText;
                 else if (field === 'activity') {
                     const activityIndex = parseInt(parts[3]);
                     if (updated[phaseIndex].activities) {
@@ -742,6 +1295,26 @@ export default function Dashboard() {
     );
   }
 
+  // Define common props to pass to RoleCardDisplay before the return statement
+  const commonRoleCardProps = {
+      personnel,
+      isUserAdmin,
+      expandedRoles,
+      toggleRole,
+      handleDragOver,
+      handleDropOnRole,
+      handleDragEnter,
+      handleDragLeave,
+      handleDragStart,
+      handleDragEnd,
+      handleTextClick,
+      handleTextBlur,
+      handleKeyDown,
+      editText,
+      editingId,
+      unassignPerson: removePerson
+  };
+
   return (
     <div className="dashboard-container">
       <Head>
@@ -836,7 +1409,8 @@ export default function Dashboard() {
           <div className="tab-content">
             {activeTab === 'structure' && (
               <div className="structure-tab-content">
-                <div className="structure-container">
+                <div className="structure-container-hierarchy"> {/* New container class */}
+                  {/* --- Personnel Column --- */}
                   <div className="personnel-column">
                     <div className="personnel-list"
                       onDragOver={handleDragOver}
@@ -856,7 +1430,7 @@ export default function Dashboard() {
                         {personnel.filter(p => !p.assignedRole).map((person) => (
                           <div
                             key={person.id}
-                            className="personnel-card draggable"
+                            className={`personnel-card draggable ${draggedPerson?.id === person.id ? 'dragging' : ''}`}
                             draggable={isUserAdmin}
                             onDragStart={(e) => handleDragStart(e, person)}
                             onDragEnd={handleDragEnd}
@@ -886,78 +1460,71 @@ export default function Dashboard() {
                           </div>
                         ))}
                          {personnel.filter(p => !p.assignedRole).length === 0 && (
-                            <p className="empty-list-message">Drag assigned personnel here to unassign.</p>
+                            <p className="empty-list-message">All personnel assigned.</p>
                          )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="structure-column">
-                    {Object.entries(roles).map(([roleKey, roleData]) => (
-                      <div key={roleKey} className="role-card">
-                        <div className="role-header" onClick={() => toggleRole(roleKey)}>
-                          <div className="role-header-title">
-                              {roleData.icon}
-                              <h3>{roleData.title}</h3>
-                          </div>
-                          <span>{expandedRoles[roleKey] ? <ChevronUp /> : <ChevronDown />}</span>
+                  {/* --- Hierarchy Column --- */}
+                  <div className="hierarchy-column"> {/* New column class */}
+                    <div className="hierarchy-level director-level">
+                       <RoleCardDisplay roleKey="director" roleData={roles.director} {...commonRoleCardProps} />
+                    </div>
+
+                    {/* Connector (Optional Visual) */}
+                     <div className="connector-line-vertical"></div>
+
+                    <div className="hierarchy-level reports-level">
+                        <div className="systems-lead-container">
+                           <RoleCardDisplay roleKey="systemsLead" roleData={roles.systemsLead} {...commonRoleCardProps} />
                         </div>
-                        {expandedRoles[roleKey] && (
-                          <div
-                            className="role-content drop-zone"
-                            onDragOver={handleDragOver}
-                            onDrop={() => handleDropOnRole(roleKey)}
-                            onDragEnter={handleDragEnter}
-                            onDragLeave={handleDragLeave}
-                          >
-                            <h4>Responsibilities:</h4>
-                            <ul>{roleData.responsibilities.map((resp, index) => <li key={index}>{resp}</li>)}</ul>
-                            <div className="role-details">
-                                <p><strong>Salary:</strong> {roleData.salary}</p>
-                                <p><strong>Department:</strong> {roleData.department}</p>
-                            </div>
-                            <div className="assigned-personnel">
-                              <h4>Assigned Personnel:</h4>
-                              {personnel.filter(p => p.assignedRole === roleKey).map(person => (
-                                <div key={person.id} className="assigned-person draggable"
-                                  draggable={isUserAdmin}
-                                  onDragStart={(e) => handleDragStart(e, person)}
-                                  onDragEnd={handleDragEnd}
-                                >
-                                  <div
-                                     data-edit-id={`person-${person.id}`}
-                                     className="editable-text personnel-name"
-                                     contentEditable={isUserAdmin}
-                                     suppressContentEditableWarning={true}
-                                     onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                                     onClick={() => isUserAdmin && handleTextClick(`person-${person.id}`, person.name)}
-                                     onBlur={() => handleTextBlur(`person-${person.id}`)}
-                                     onKeyDown={(e) => handleKeyDown(e, `person-${person.id}`)}
-                                     onInput={handleTextChange}
-                                    >
-                                     {editingId === `person-${person.id}` ? editText : person.name}
-                                   </div>
-                                  {isUserAdmin && (
-                                     <button
-                                       onClick={() => removePerson(person.id)}
-                                       className="unassign-button"
-                                       title="Unassign Role"
-                                     >
-                                       <XCircle size={14} />
-                                     </button>
-                                  )}
-                                </div>
-                              ))}
-                              {personnel.filter(p => p.assignedRole === roleKey).length === 0 && (
-                                  <p className="empty-list-message">Drag available personnel here.</p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                        <div className="managers-container"> 
+                            {/* Render 3 Manager sections */}
+                            {[1, 2, 3].map(managerIndex => {
+                                // We use the same 'qualityManager' roleKey for drop target, 
+                                // but display visually separate sections. 
+                                // If needed, can create specific keys like 'qm1', 'qm2' etc.
+                                const managerRoleKey = 'qualityManager'; 
+                                return (
+                                    <div key={`manager-section-${managerIndex}`} className="manager-section">
+                                        <RoleCardDisplay roleKey={managerRoleKey} roleData={roles.qualityManager} {...commonRoleCardProps} />
+                                        
+                                        {/* Visually Nest Team Members Under Manager */}
+                                        {expandedRoles[managerRoleKey] && (
+                                            <div className="team-members">
+                                                <RoleCardDisplay roleKey="seniorSpecialist" roleData={roles.seniorSpecialist} {...commonRoleCardProps} />
+                                                <RoleCardDisplay roleKey="qualitySpecialist" roleData={roles.qualitySpecialist} {...commonRoleCardProps} />
+                                                <RoleCardDisplay roleKey="complaintsSpecialist" roleData={roles.complaintsSpecialist} {...commonRoleCardProps} />
+                                                <RoleCardDisplay roleKey="associateSpecialist" roleData={roles.associateSpecialist} {...commonRoleCardProps} />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    
+                    {/* Connector (Optional Visual) */}
+                     {/* <div className="connector-line-vertical"></div> */}
+                    
+                    <div className="hierarchy-level offshift-level">
+                        <RoleCardDisplay roleKey="offshiftAssociate" roleData={roles.offshiftAssociate} {...commonRoleCardProps} />
+                    </div>
+
+                    {/* Add Lab Group Separately or integrate if structure is different */} 
+                    <div className="hierarchy-level lab-group-level">
+                        <h3>Functional Testing Group</h3>
+                        <RoleCardDisplay roleKey="labManager" roleData={roles.labManager} {...commonRoleCardProps} />
+                        <div className="lab-team">
+                            <RoleCardDisplay roleKey="seniorLabTechnician" roleData={roles.seniorLabTechnician} {...commonRoleCardProps} />
+                            <RoleCardDisplay roleKey="labTechnician" roleData={roles.labTechnician} {...commonRoleCardProps} />
+                            <RoleCardDisplay roleKey="associateLabTechnician" roleData={roles.associateLabTechnician} {...commonRoleCardProps} />
+                        </div>
+                    </div>
+
+                  </div> {/* End Hierarchy Column */}
+                </div> {/* End Structure Container */}
               </div>
             )}
 
@@ -972,12 +1539,12 @@ export default function Dashboard() {
                          contentEditable={isUserAdmin}
                          suppressContentEditableWarning={true}
                          onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                         onClick={() => isUserAdmin && handleTextClick(`timeline-${index}-phase`, phase.title)}
+                         onClick={() => isUserAdmin && handleTextClick(`timeline-${index}-phase`, phase.phase)}
                          onBlur={() => handleTextBlur(`timeline-${index}-phase`)}
                          onKeyDown={(e) => handleKeyDown(e, `timeline-${index}-phase`)}
                          onInput={handleTextChange}
                        >
-                         {editingId === `timeline-${index}-phase` ? editText : phase.title}
+                         {editingId === `timeline-${index}-phase` ? editText : phase.phase}
                       </h3>
                        <p
                          data-edit-id={`timeline-${index}-timeframe`}
@@ -985,12 +1552,12 @@ export default function Dashboard() {
                          contentEditable={isUserAdmin}
                          suppressContentEditableWarning={true}
                          onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                         onClick={() => isUserAdmin && handleTextClick(`timeline-${index}-timeframe`, phase.description)}
+                         onClick={() => isUserAdmin && handleTextClick(`timeline-${index}-timeframe`, phase.timeframe)}
                          onBlur={() => handleTextBlur(`timeline-${index}-timeframe`)}
                          onKeyDown={(e) => handleKeyDown(e, `timeline-${index}-timeframe`)}
                          onInput={handleTextChange}
                        >
-                         {editingId === `timeline-${index}-timeframe` ? editText : phase.description}
+                         {editingId === `timeline-${index}-timeframe` ? editText : phase.timeframe}
                        </p>
                       <ul>
                         {phase.activities.map((activity, activityIndex) => (

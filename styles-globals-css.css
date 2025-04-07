@@ -627,3 +627,187 @@ a {
 .remove-assigned-button:hover {
   opacity: 1;
 }
+
+/* Revised Structure Tab Layout */
+.structure-container-hierarchy {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem; /* Space between personnel and hierarchy */
+}
+
+.personnel-column {
+  flex: 0 0 300px; /* Keep fixed width for personnel list */
+  min-width: 300px;
+}
+
+.hierarchy-column {
+  flex: 1; /* Hierarchy takes remaining space */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center levels horizontally */
+  gap: 1rem; /* Space between levels */
+}
+
+/* Styling for Hierarchy Levels */
+.hierarchy-level {
+  width: 100%;
+  display: flex;
+  flex-direction: column; /* Default for single roles like Director */
+  align-items: center;
+  gap: 1rem;
+}
+
+.director-level .role-card {
+  max-width: 400px; /* Adjust width as needed */
+}
+
+.reports-level {
+  display: flex; /* Arrange Systems Lead and Managers side-by-side */
+  flex-direction: row;
+  justify-content: center; /* Center the group */
+  align-items: flex-start; /* Align tops */
+  width: 100%;
+  gap: 2rem;
+}
+
+.systems-lead-container {
+  flex: 0 0 300px; /* Give Systems Lead a fixed width */
+}
+
+.managers-container {
+  flex: 1; /* Managers take remaining space */
+  display: flex;
+  flex-direction: row; /* Managers side-by-side */
+  justify-content: space-around; /* Distribute managers */
+  gap: 1rem;
+}
+
+.manager-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.team-members {
+  margin-top: 0.5rem;
+  padding-left: 1rem; /* Indent team members slightly */
+  border-left: 2px solid #e9ecef; /* Visual connection */
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%; /* Ensure team members stack */
+}
+
+.offshift-level .role-card {
+  max-width: 400px; /* Adjust width as needed */
+}
+
+.lab-group-level {
+  margin-top: 2rem;
+  border-top: 1px solid #ccc;
+  padding-top: 1rem;
+}
+
+.lab-group-level h3 {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.lab-team {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap; /* Allow wrapping if needed */
+}
+
+/* Connector Lines (Optional Visual) */
+.connector-line-vertical {
+  width: 2px;
+  height: 30px;
+  background-color: #ccc;
+  margin: 0.5rem auto; /* Center between levels */
+}
+
+/* Dragging state for personnel card */
+.personnel-card.dragging {
+  opacity: 0.4;
+  background-color: #d0e0ff;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Drag over available list */
+.personnel-list.drag-over-available {
+  background-color: #e8ffe8; /* Light green feedback */
+  border: 2px dashed #81C341;
+}
+
+/* Update Role Card Drop Zone feedback */
+.role-content.drag-over {
+  background-color: #e8f0fe; /* Light blue background */
+  border: 2px dashed #a0c3ff; /* Blue dashed border */
+}
+
+/* Ensure assigned person is also a draggable item visually */
+.assigned-person.draggable {
+  cursor: move;
+}
+.assigned-person.dragging {
+   opacity: 0.4;
+}
+
+/* Align unassign button better */
+.unassign-button {
+  /* Reusing styles from remove-assigned-button */
+  background: none;
+  border: none;
+  color: #ff4d4f; /* Different red maybe */
+  cursor: pointer;
+  padding: 0 0 0 0.5rem; 
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  /* position: absolute; 
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%); */ /* Removed absolute positioning */
+  margin-left: auto; /* Push to the right */
+}
+.unassign-button:hover {
+  opacity: 1;
+}
+
+/* Style for the delete person button in available list */
+.delete-person-button {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 0 0 0 0.5rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  margin-left: auto; /* Push to right */
+}
+.delete-person-button:hover {
+  opacity: 1;
+}
+
+.assigned-person {
+   display: flex; /* Ensure name and button are in a row */
+   align-items: center;
+   justify-content: space-between; /* Push button to the end */
+}
+
+.personnel-card {
+   display: flex; /* Ensure name and button are in a row */
+   align-items: center;
+   justify-content: space-between; /* Push button to the end */
+}
+
+.personnel-name {
+  flex-grow: 1; /* Allow name to take available space */
+  margin-right: 0.5rem; /* Space before button */
+}
+
+/* ... ensure other necessary styles exist ... */
