@@ -31,6 +31,7 @@ export default function Dashboard() {
     const unsubscribe = setupAuthObserver((user, isAdmin) => {
       setUser(user);
       setIsUserAdmin(isAdmin);
+      setLoading(false);
     });
 
     // Cleanup subscription on unmount
@@ -42,7 +43,10 @@ export default function Dashboard() {
   // Load personnel from Firebase
   useEffect(() => {
     const loadPersonnel = async () => {
-      if (!user) return; // Only load if user is authenticated
+      if (!user) {
+        setLoading(false);
+        return;
+      }
       
       try {
         setLoading(true);

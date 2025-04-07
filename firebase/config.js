@@ -12,7 +12,13 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+  // Handle initialization error
+}
 
 // Initialize services
 const db = getFirestore(app);
@@ -33,17 +39,23 @@ const isAdmin = async (user) => {
 
 // Auth state observer
 export const setupAuthObserver = (callback) => {
-  return onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      const adminStatus = await isAdmin(user);
-      console.log('User is signed in:', user.email);
-      console.log('Admin status:', adminStatus);
-      if (callback) callback(user, adminStatus);
-    } else {
-      console.log('User is signed out');
-      if (callback) callback(null, false);
-    }
-  });
+  try {
+    return onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const adminStatus = await isAdmin(user);
+        console.log('User is signed in:', user.email);
+        console.log('Admin status:', adminStatus);
+        if (callback) callback(user, adminStatus);
+      } else {
+        console.log('User is signed out');
+        if (callback) callback(null, false);
+      }
+    });
+  } catch (error) {
+    console.error('Auth observer error:', error);
+    if (callback) callback(null, false);
+    return () => {}; // Return empty cleanup function
+  }
 };
 
 export { db, auth, isAdmin }; 
