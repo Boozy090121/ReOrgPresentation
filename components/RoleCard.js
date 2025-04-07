@@ -24,7 +24,8 @@ const RoleCard = ({
   allRoles
 }) => {
 
-  const assigned = personnel.filter(p => p.assignedRole === roleKey);
+  // Ensure personnel is an array before filtering
+  const assigned = Array.isArray(personnel) ? personnel.filter(p => p.assignedRole === roleKey) : [];
   const cardStyle = {
     borderLeft: `5px solid ${roleData.color || '#ccc'}`, // Use roleData.color for border
   };

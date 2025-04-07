@@ -22,7 +22,8 @@ const AvailablePersonnel = ({
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [personToDelete, setPersonToDelete] = useState(null);
 
-  const available = personnel.filter(p => !p.assignedRole);
+  // Ensure personnel is an array before filtering
+  const available = Array.isArray(personnel) ? personnel.filter(p => !p.assignedRole) : [];
 
   const addNewPerson = async () => {
     if (!newPersonName.trim() || !isUserAdmin) return;
@@ -44,7 +45,8 @@ const AvailablePersonnel = ({
 
   const removePerson = (personId) => {
     if (!isUserAdmin) return;
-    const person = personnel.find(p => p.id === personId);
+    // Also check personnel array here before find
+    const person = Array.isArray(personnel) ? personnel.find(p => p.id === personId) : null;
     if (!person) return;
     setPersonToDelete(person);
     setShowDeleteConfirmModal(true);
