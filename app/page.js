@@ -287,17 +287,20 @@ export default function Dashboard() {
     e.currentTarget.classList.remove('drag-over');
   };
 
+  // Handlers specifically for the Available Personnel drop zone
   const handleDragEnterAvailable = (e) => {
-    if (!isUserAdmin || !draggedPerson || !draggedPerson.assignedRole) return;
+    if (!isUserAdmin || !draggedPerson) return;
     e.preventDefault();
-    e.currentTarget.classList.add('drag-over-available');
+    // Add a specific class to indicate this drop zone is active
+    e.currentTarget.classList.add('drag-over-available'); 
   };
 
   const handleDragLeaveAvailable = (e) => {
     if (!isUserAdmin) return;
     e.preventDefault();
+    // Check if leaving to a child element before removing the class
     if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) {
-      return;
+      return; 
     }
     e.currentTarget.classList.remove('drag-over-available');
   };
@@ -971,8 +974,6 @@ export default function Dashboard() {
                         handleDropOnAvailable={handleDropOnAvailable}
                         handleDragEnterAvailable={handleDragEnterAvailable}
                         handleDragLeaveAvailable={handleDragLeaveAvailable}
-                        addPersonnel={addPersonnel}
-                        deletePersonnel={deletePersonnel}
                         handleTextClick={handleTextClick}
                         handleTextBlur={handleTextBlur}
                         handleKeyDown={handleKeyDown}
