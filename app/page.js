@@ -914,12 +914,15 @@ export default function Dashboard() {
                         handleKeyDown={handleKeyDown}
                         editText={editText}
                         editingId={editingId}
-                        unassignPerson={handleDropOnAvailable} 
+                        unassignPerson={handleDropOnAvailable}
                         handleTextChange={handleTextChange}
-                        allRoles={roles}
+                        allRoles={roles} // Pass allRoles if OrgStructure needs it
              />
              <AvailablePersonnel
                         personnel={personnel}
+                        setPersonnel={setPersonnel} // Pass setPersonnel
+                        setError={setError}         // Pass setError
+                        roles={roles}             // Pass roles
                         isUserAdmin={isUserAdmin}
                         handleDragStart={handleDragStart}
                         handleDragEnd={handleDragEnd}
