@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, A
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save, Trash2 } from 'lucide-react';
 import { db } from './firebase/config'; // Keep db import if needed for data loading
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, addDoc, writeBatch } from 'firebase/firestore';
-import { roles as importedRoles, timelineInitialData, initialBudgetData } from '../lib/data'; // Import static data
+import { roles, timelineData, colors, timelineInitialData, initialBudgetData } from '../lib/data'; // Import roles directly
 import RoleCard from '../components/RoleCard'; // Import RoleCard component
 import OrgStructure from '../components/OrgStructure'; // Import OrgStructure
 import AvailablePersonnel from '../components/AvailablePersonnel'; // Import AvailablePersonnel
@@ -109,7 +109,7 @@ export default function Dashboard() {
         if (docSnap.exists()) {
           setBudgetData(docSnap.data().factories || {});
         } else {
-          const { initialBudgetData } = importedRoles;
+          const { initialBudgetData } = roles;
           await setDoc(docRef, { factories: initialBudgetData });
           setBudgetData(initialBudgetData);
           console.log("Budget document created with initial factory data.");
