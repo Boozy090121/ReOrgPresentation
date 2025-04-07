@@ -4,12 +4,13 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWith
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB1QJQJQJQJQJQJQJQJQJQJQJQJQJQJQJQ",
-  authDomain: "pci-quality-org.firebaseapp.com",
-  projectId: "pci-quality-org",
-  storageBucket: "pci-quality-org.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef1234567890abcdef"
+  apiKey: "AIzaSyDtwEtmg-4XgHlsyu0KEzkY7U7u26Y_K5o",
+  authDomain: "reorg-presentation.firebaseapp.com",
+  projectId: "reorg-presentation",
+  storageBucket: "reorg-presentation.firebasestorage.app",
+  messagingSenderId: "849557555127",
+  appId: "1:849557555127:web:6d12110e5680506dff0a32",
+  measurementId: "G-RDM81N4BRQ"
 };
 
 // Initialize Firebase
