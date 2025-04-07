@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { UserPlus, Trash2, Download, Edit2, Save } from 'lucide-react'; // Added Edit2, Save
-import { db } from '../app/firebase/config'; // Assuming db is exported from here
-import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore'; // Keep Firestore imports if needed *within component* (e.g., maybe not needed now)
+// Remove direct Firestore imports if actions are handled by props
+// import { db } from '../app/firebase/config'; 
+// import { collection, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import { downloadCSV } from '../lib/utils'; // Import download utility
 
 const AvailablePersonnel = ({
   personnel,
-  setPersonnel, // May not be needed if handled by page
+  // setPersonnel, // May not be needed if handled by page
   isUserAdmin,
   handleDragStart,
   handleDragEnd,
@@ -35,14 +36,8 @@ const AvailablePersonnel = ({
   // Ensure personnel is an array before filtering
   const available = Array.isArray(personnel) ? personnel.filter(p => !p.assignedRole) : [];
 
-  // Remove internal addNewPerson, use prop
-  // const addNewPerson = async () => { ... };
-
   // Internal handler to trigger the addPersonnel prop from page.js
   const handleAddPersonClick = () => {
-    // We can just call the prop directly, no need for name state here
-    // If we wanted a modal for name entry *before* calling page add, keep modal logic
-    // For simplicity now, let's assume the page adds 'New Teammate'
      if (addPersonnel) {
        addPersonnel(); // Call the function passed from app/page.js
      } else {
@@ -52,18 +47,12 @@ const AvailablePersonnel = ({
     // setShowAddPersonModal(true); // If keeping modal, trigger it here
   };
 
-  // Remove internal removePerson, use prop
-  // const removePerson = (personId) => { ... };
-
   // Internal handler to set state for the confirmation modal
   const handleDeletePersonClick = (person) => {
     if (!isUserAdmin || !person) return;
     setPersonToDelete(person);
     setShowDeleteConfirmModal(true);
   };
-
-  // Remove internal confirmDeletePerson, use prop
-  // const confirmDeletePerson = async () => { ... };
 
   // Internal handler to call the deletePersonnel prop from page.js
   const handleConfirmDelete = () => {

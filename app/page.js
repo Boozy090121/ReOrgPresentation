@@ -4,18 +4,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle,
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save, Trash2 } from 'lucide-react';
-import { db } from './firebase/config'; // Keep db import if needed for data loading
+import { getDbInstance } from './firebase/config';
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, addDoc, writeBatch } from 'firebase/firestore';
-import { roles, timelineData, colors, timelineInitialData, initialBudgetData } from '../lib/data'; // Import roles directly
-import RoleCard from '../components/RoleCard'; // Import RoleCard component
-import OrgStructure from '../components/OrgStructure'; // Import OrgStructure
-import AvailablePersonnel from '../components/AvailablePersonnel'; // Import AvailablePersonnel
-import Timeline from '../components/Timeline'; // Import Timeline
-import Budget from '../components/Budget'; // Import Budget
-import AuthSection from '../components/AuthSection'; // Import AuthSection
-import WorkloadAnalysis from '../components/WorkloadAnalysis'; // Import WorkloadAnalysis
-import { useAuth } from '../lib/hooks/useAuth'; // Import useAuth hook
-import { useInlineEditing } from '../lib/hooks/useInlineEditing'; // Import the new hook
+import { roles, timelineData, colors, timelineInitialData, initialBudgetData } from '../lib/data';
+import RoleCard from '../components/RoleCard';
+import OrgStructure from '../components/OrgStructure';
+import AvailablePersonnel from '../components/AvailablePersonnel';
+import Timeline from '../components/Timeline';
+import Budget from '../components/Budget';
+import AuthSection from '../components/AuthSection';
+import WorkloadAnalysis from '../components/WorkloadAnalysis';
+import { useAuth } from '../lib/hooks/useAuth';
+import { useInlineEditing } from '../lib/hooks/useInlineEditing';
 
 // Main Dashboard component
 export default function Dashboard() {
@@ -52,6 +52,7 @@ export default function Dashboard() {
         console.log("loadAllData called...");
         try {
            // Check if db is available before loading
+           const db = getDbInstance();
            if (!db) {
                console.error("loadAllData: DB not available!");
                throw new Error("Database connection not available.");
@@ -92,7 +93,7 @@ export default function Dashboard() {
   
   // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
   const loadPersonnel = useCallback(async () => {
-    // Check db at the start of the function
+    const db = getDbInstance(); // Get DB instance when function is called
     if (!db) {
         console.error("Load Personnel: DB not available");
         setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
@@ -111,6 +112,7 @@ export default function Dashboard() {
   }, [setError]);
 
   const loadTimeline = useCallback(async () => {
+    const db = getDbInstance(); // Get DB instance
     if (!db) {
         console.error("Load Timeline: DB not available");
         setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
@@ -144,6 +146,7 @@ export default function Dashboard() {
   }, [setError]);
 
   const loadBudget = useCallback(async () => {
+     const db = getDbInstance(); // Get DB instance
      if (!db) {
         console.error("Load Budget: DB not available");
         setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
@@ -207,6 +210,7 @@ export default function Dashboard() {
   };
 
   const handleDropOnRole = async (roleKey) => {
+    const db = getDbInstance(); // Get DB instance
     // Add db check and draggedPerson check
     if (!draggedPerson || !isUserAdmin || !db) {
         if (!db) setError("Database error. Cannot assign role.");
@@ -246,7 +250,8 @@ export default function Dashboard() {
   };
 
   const handleDropOnAvailable = async () => {
-     // Add db check and draggedPerson check
+    const db = getDbInstance(); // Get DB instance
+    // Add db check and draggedPerson check
     if (!draggedPerson || !draggedPerson.assignedRole || !isUserAdmin || !db) {
         if (!db) setError("Database error. Cannot unassign role.");
         if (!draggedPerson) setError("Drag error. Please try again.");
@@ -598,7 +603,7 @@ export default function Dashboard() {
 
   // Helper to update Firestore
   const updateFirestoreData = useCallback(async (id, value) => {
-    // Add db check and id validation
+    const db = getDbInstance(); // Get DB instance
     if (!id || typeof id !== 'string' || !db) {
         if (!db) setError("Database error. Cannot save changes.");
         else setError("Invalid data reference. Cannot save changes.");
@@ -720,10 +725,11 @@ export default function Dashboard() {
         setError(`Failed to save changes for ${id}. Details: ${error.message}`);
         return false;
     }
-  }, [db, setError]);
+  }, [setError]);
 
   // Function to add a new person
   const addPersonnel = useCallback(async () => {
+    const db = getDbInstance(); // Get DB instance
     if (!isUserAdmin || !db) {
       setError("Permission denied or database connection error. Cannot add personnel.");
       return;
@@ -748,10 +754,11 @@ export default function Dashboard() {
       console.error("Error adding personnel:", err);
       setError("Failed to add new personnel to the database.");
     }
-  }, [db, isUserAdmin, setError, setPersonnel]);
+  }, [isUserAdmin, setError, setPersonnel]);
 
   // Function to delete a person
   const deletePersonnel = useCallback(async (personId) => {
+    const db = getDbInstance(); // Get DB instance
     if (!isUserAdmin || !db || !personId) {
       setError("Permission denied, invalid ID, or database connection error. Cannot delete personnel.");
       return;
@@ -770,10 +777,11 @@ export default function Dashboard() {
       console.error("Error deleting personnel:", err);
       setError(`Failed to delete personnel ${personId} from the database.`);
     }
-  }, [db, isUserAdmin, setError, setPersonnel]);
+  }, [isUserAdmin, setError, setPersonnel]);
 
   // Function to save the entire timeline state to Firestore
   const saveTimelineChanges = useCallback(async () => {
+    const db = getDbInstance(); // Get DB instance
     if (!isUserAdmin || !db) {
       setError("Permission denied or database error. Cannot save timeline changes.");
       return false;
@@ -789,10 +797,11 @@ export default function Dashboard() {
       setError("Failed to save timeline changes to the database.");
       return false;
     }
-  }, [db, isUserAdmin, timeline, setError]);
+  }, [isUserAdmin, timeline, setError]);
 
   // Function to save the entire budget state to Firestore
   const saveBudgetChanges = useCallback(async () => {
+    const db = getDbInstance(); // Get DB instance
     if (!isUserAdmin || !db) {
       setError("Permission denied or database error. Cannot save budget changes.");
       return false;
@@ -808,7 +817,7 @@ export default function Dashboard() {
       setError("Failed to save budget changes to the database.");
       return false;
     }
-  }, [db, isUserAdmin, budgetData, setError]);
+  }, [isUserAdmin, budgetData, setError]);
 
   // Render helpers or main render logic
   const renderContent = () => {
@@ -823,6 +832,7 @@ export default function Dashboard() {
     }
 
     // Handle DB connection error (after data load attempt)
+    const db = getDbInstance();
     if (!db && ['structure', 'timeline', 'budget'].includes(activeTab)) {
         // Check error state to avoid double messages if load already failed
         if (!error) {
