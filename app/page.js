@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle, 
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save } from 'lucide-react';
-import { db, auth, setupAuthObserver } from './firebase/config';
+import { db, auth, setupAuthObserver } from '../firebase/config';
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 

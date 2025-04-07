@@ -32,7 +32,7 @@ const isAdmin = async (user) => {
 };
 
 // Auth state observer
-const setupAuthObserver = (callback) => {
+export const setupAuthObserver = (callback) => {
   return onAuthStateChanged(auth, async (user) => {
     if (user) {
       const adminStatus = await isAdmin(user);
@@ -46,4 +46,4 @@ const setupAuthObserver = (callback) => {
   });
 };
 
-export { db, auth, isAdmin, setupAuthObserver }; 
+export { db, auth, isAdmin }; 
