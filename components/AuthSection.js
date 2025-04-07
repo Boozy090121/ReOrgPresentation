@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth } from '../app/firebase/config'; // Assuming auth is exported from here
+import { getAuthInstance } from '../app/firebase/config';
 
 // This component assumes useAuth hook provides user and isUserAdmin
 // For now, we pass them as props, along with handleLogout
 // It manages its own modal state and login logic
 
-const AuthSection = ({ user, isUserAdmin, handleLogout }) => {
+const AuthSection = ({ user, isUserAdmin, minimal, userEmail, signOutAction }) => {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -15,9 +15,12 @@ const AuthSection = ({ user, isUserAdmin, handleLogout }) => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
+    const auth = getAuthInstance();
+    if (!auth) {
+      setLoginError('Authentication service not available.');
+      return;
+    }
     try {
-      // signInWithEmailAndPassword handles the auth state change,
-      // which should be picked up by the (future) useAuth hook
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setShowLoginModal(false);
       setLoginEmail('');
@@ -32,8 +35,17 @@ const AuthSection = ({ user, isUserAdmin, handleLogout }) => {
     }
   };
 
+  if (minimal && user) {
+    return (
+      <div className="auth-section minimal">
+        <span className="user-email">{userEmail || 'Logged In'}</span>
+        <button onClick={signOutAction} className="auth-button logout-button">Logout</button>
+      </div>
+    );
+  }
+
   return (
-    <div className="auth-section">
+    <div className="auth-section full">
       {/* Login Modal */} 
       {showLoginModal && !user && (
         <div className="modal-overlay">
@@ -67,13 +79,8 @@ const AuthSection = ({ user, isUserAdmin, handleLogout }) => {
         </div>
       )}
 
-      {/* User Status and Buttons */} 
-      {user ? (
-        <>
-          <span className="user-email">{user.email} {isUserAdmin ? '(Admin)' : ''}</span>
-          <button onClick={handleLogout} className="auth-button logout-button">Logout</button>
-        </>
-      ) : (
+      {/* User Status and Buttons (Full view, shown when logged out) */} 
+      {!user && (
         <button onClick={() => setShowLoginModal(true)} className="auth-button login-button">Admin Login</button>
       )}
     </div>
