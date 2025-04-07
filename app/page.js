@@ -33,46 +33,57 @@ export default function Dashboard() {
 
   // Data Loading Effect (depends on user authentication)
   useEffect(() => {
+    console.log("Data loading effect triggered. LoadingAuth:", loadingAuth, "User:", !!user);
     // Only load data if auth is resolved and user is logged in
     if (!loadingAuth && user) {
+      console.log("Auth resolved, user logged in. Starting data load...");
       const loadAllData = async () => {
         setError(null);
-        setInitialDataLoaded(false);
-        console.log("Loading all data...");
+        setInitialDataLoaded(false); // Ensure loading state is true initially
+        console.log("loadAllData called...");
         try {
            // Check if db is available before loading
            if (!db) {
+               console.error("loadAllData: DB not available!");
                throw new Error("Database connection not available.");
            }
           // Refetch or load initial data here
-           const [loadedPersonnel, loadedTimelineData, loadedBudget] = await Promise.all([
-              loadPersonnel(),
-              loadTimeline(), 
-              loadBudget()    
-          ]);
+           console.log("Loading personnel...");
+           const loadedPersonnel = await loadPersonnel();
+           console.log("Loading timeline...");
+           const loadedTimelineData = await loadTimeline();
+           console.log("Loading budget...");
+           const loadedBudget = await loadBudget();
+
           // Ensure data is set correctly, even if some loads returned defaults
-          setPersonnel(loadedPersonnel || []); 
+          console.log("Setting state with loaded data...");
+          setPersonnel(loadedPersonnel || []);
           setTimeline(loadedTimelineData || []);
           setBudgetData(loadedBudget || {});
           setInitialDataLoaded(true);
-          console.log("Data loading complete.");
+          console.log("Data loading complete. initialDataLoaded set to true.");
         } catch (err) {
-          console.error("Error loading data:", err);
+          console.error("Error within loadAllData:", err);
           setError(`Failed to load application data: ${err.message}. Please try refreshing.`);
-          setInitialDataLoaded(false);
+          setInitialDataLoaded(false); // Explicitly set to false on error
         }
       };
       loadAllData();
-    } else if (!user) {
-      // Reset state if user logs out
+    } else if (!loadingAuth && !user) {
+      // Reset state if user logs out (or was never logged in after auth resolved)
+      console.log("Auth resolved, user not logged in. Resetting state.");
       setPersonnel([]);
       setTimeline([]);
       setBudgetData({});
-      setInitialDataLoaded(false);
+      setInitialDataLoaded(false); // Ensure loaded is false if no user
       setError(null);
+    } else {
+      console.log("Auth not yet resolved (loadingAuth is true).");
+       // Optionally reset state here too if needed while auth is loading
+       // setInitialDataLoaded(false);
     }
-  // Depend on auth state and user status
-  }, [loadingAuth, user, initialDataLoaded]);
+  // Depend ONLY on auth state and user status
+  }, [loadingAuth, user]); // <<< FIXED Dependency Array
   
   // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
   const loadPersonnel = useCallback(async () => {
