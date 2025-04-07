@@ -1,49 +1,41 @@
-const admin = require('firebase-admin');
-const serviceAccount = require('../reorg-presentation-firebase-adminsdk-fbsvc-ad182587f0.json');
+const { initializeApp } = require('firebase/app');
+const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } = require('firebase/auth');
+const { getFirestore, doc, setDoc } = require('firebase/firestore');
 
-// Initialize Firebase Admin
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+const firebaseConfig = {
+  apiKey: "AIzaSyDvQq8Qq8Qq8Qq8Qq8Qq8Qq8Qq8Qq8Qq8",
+  authDomain: "reorg-presentation.firebaseapp.com",
+  projectId: "reorg-presentation",
+  storageBucket: "reorg-presentation.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
 
-const db = admin.firestore();
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-async function createAdminUser(email, password) {
+const ADMIN_EMAIL = 'Admin';
+const ADMIN_PASSWORD = 'Admin1234';
+
+async function createAdminUser() {
   try {
-    // Create user in Firebase Auth
-    const userRecord = await admin.auth().createUser({
-      email: email,
-      password: password,
-      emailVerified: true
+    // Create the user
+    const userCredential = await createUserWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const user = userCredential.user;
+
+    // Add user to admins collection
+    await setDoc(doc(db, 'admins', user.uid), {
+      email: ADMIN_EMAIL,
+      createdAt: new Date()
     });
 
-    // Set custom claims (admin role)
-    await admin.auth().setCustomUserClaims(userRecord.uid, { admin: true });
-
-    // Add to admins collection
-    await db.collection('admins').doc(userRecord.uid).set({
-      admin: true,
-      email: email,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    console.log(`Successfully created admin user: ${email}`);
-    console.log(`Password: ${password}`);
-    console.log('Please save these credentials securely.');
-    return userRecord;
+    console.log('Admin user created successfully!');
+    console.log('Email:', ADMIN_EMAIL);
+    console.log('Password:', ADMIN_PASSWORD);
   } catch (error) {
     console.error('Error creating admin user:', error);
-    throw error;
   }
 }
 
-// Run with your desired credentials
-const ADMIN_EMAIL = 'admin@pci.com';
-const ADMIN_PASSWORD = 'PCI@dmin2024!';
-
-createAdminUser(ADMIN_EMAIL, ADMIN_PASSWORD)
-  .then(() => process.exit())
-  .catch((error) => {
-    console.error('Setup failed:', error);
-    process.exit(1);
-  }); 
+createAdminUser(); 

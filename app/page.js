@@ -8,6 +8,54 @@ import { db, auth, setupAuthObserver } from '../firebase/config';
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
+// Timeline data
+const timelineData = [
+  {
+    id: 'phase1',
+    title: 'Phase 1: Planning & Preparation',
+    description: 'Month 1 (April) - Finalize organization structure and job descriptions, develop transition plan, identify training needs, create communication plan, prepare transition documentation.'
+  },
+  {
+    id: 'phase2',
+    title: 'Phase 2: Initial Implementation',
+    description: 'Month 2 (May 1st Deadline) - Transition existing staff to new roles, fill critical open positions, conduct initial training, implement new client team structure, establish metrics dashboards.'
+  },
+  {
+    id: 'phase3',
+    title: 'Phase 3: Rollout & Stabilization',
+    description: 'Months 5-6 - Complete training and onboarding, implement new shift coverage model, standardize client communication processes, launch quality metrics tracking, validate new quality workflows.'
+  },
+  {
+    id: 'phase4',
+    title: 'Phase 4: Optimization',
+    description: 'Months 7-9 - Review and refine organization based on feedback, develop advanced training, optimize client-specific processes, implement continuous improvement initiatives, conduct post-implementation assessment.'
+  }
+];
+
+// Budget data
+const budgetData = [
+  {
+    id: 'leadership',
+    category: 'Leadership',
+    amount: '$713,000 - $879,000'
+  },
+  {
+    id: 'specialists',
+    category: 'Specialists',
+    amount: '$1,670,000 - $2,030,000'
+  },
+  {
+    id: 'associates',
+    category: 'Associates',
+    amount: '$805,000 - $1,020,000'
+  },
+  {
+    id: 'total',
+    category: 'Total Budget',
+    amount: '$3,188,000 - $3,929,000'
+  }
+];
+
 // Main Dashboard component
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('structure');
@@ -184,12 +232,15 @@ export default function Dashboard() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      setLoginError('');
-      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        ADMIN_CREDENTIALS.email,
+        ADMIN_CREDENTIALS.password
+      );
       setShowLoginModal(false);
+      setLoginError('');
     } catch (error) {
-      console.error('Login error:', error);
-      setLoginError('Invalid email or password');
+      setLoginError('Invalid credentials');
     }
   };
 
