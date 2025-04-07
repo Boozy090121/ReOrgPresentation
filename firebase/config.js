@@ -3,7 +3,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyDvQq8Qq8Qq8Qq8Qq8Qq8Qq8Qq8Qq8Qq8",
   authDomain: "reorg-presentation.firebaseapp.com",
   projectId: "reorg-presentation",
   storageBucket: "reorg-presentation.appspot.com",
@@ -11,7 +11,10 @@ const firebaseConfig = {
   appId: "YOUR_APP_ID"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+// Initialize services
 const db = getFirestore(app);
 const auth = getAuth(app);
 
@@ -29,14 +32,25 @@ const isAdmin = async (user) => {
 };
 
 // Auth state observer
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    const adminStatus = await isAdmin(user);
-    console.log('User is signed in:', user.email);
-    console.log('Admin status:', adminStatus);
-  } else {
-    console.log('User is signed out');
+let unsubscribeAuth;
+const setupAuthObserver = (callback) => {
+  if (unsubscribeAuth) {
+    unsubscribeAuth();
   }
-});
+  
+  unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const adminStatus = await isAdmin(user);
+      console.log('User is signed in:', user.email);
+      console.log('Admin status:', adminStatus);
+      if (callback) callback(user, adminStatus);
+    } else {
+      console.log('User is signed out');
+      if (callback) callback(null, false);
+    }
+  });
+  
+  return unsubscribeAuth;
+};
 
-export { db, auth, isAdmin }; 
+export { db, auth, isAdmin, setupAuthObserver }; 

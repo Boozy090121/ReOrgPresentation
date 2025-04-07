@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle, 
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save } from 'lucide-react';
-import { db, auth, isAdmin } from './firebase/config';
+import { db, auth, setupAuthObserver } from './firebase/config';
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 // Main Dashboard component
 export default function Dashboard() {
@@ -26,60 +26,40 @@ export default function Dashboard() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
+  // Auth state observer
+  useEffect(() => {
+    const unsubscribe = setupAuthObserver((user, isAdmin) => {
+      setUser(user);
+      setIsUserAdmin(isAdmin);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Load personnel from Firebase
   useEffect(() => {
     const loadPersonnel = async () => {
-      if (!db) {
-        setError('Firebase is not properly initialized. Please check your configuration.');
-        setLoading(false);
-        return;
-      }
-
+      if (!user) return; // Only load if user is authenticated
+      
       try {
+        setLoading(true);
         const querySnapshot = await getDocs(collection(db, 'personnel'));
         const loadedPersonnel = [];
         querySnapshot.forEach((doc) => {
           loadedPersonnel.push({ id: doc.id, ...doc.data() });
         });
-        
-        if (loadedPersonnel.length === 0) {
-          // Initialize with some example personnel if none exists
-          const initialPersonnel = [
-            { id: '1', name: "Jane Smith", assignedRole: null },
-            { id: '2', name: "John Doe", assignedRole: null },
-            { id: '3', name: "Alice Johnson", assignedRole: null },
-            { id: '4', name: "Bob Williams", assignedRole: null },
-            { id: '5', name: "Carol Martinez", assignedRole: null },
-          ];
-          
-          // Save initial personnel to Firebase
-          for (const person of initialPersonnel) {
-            await setDoc(doc(db, 'personnel', person.id), person);
-          }
-          setPersonnel(initialPersonnel);
-        } else {
-          setPersonnel(loadedPersonnel);
-        }
-      } catch (error) {
-        console.error('Error loading personnel:', error);
-        setError('Failed to load personnel data. Please try again later.');
+        setPersonnel(loadedPersonnel);
+        setError(null);
+      } catch (err) {
+        console.error('Error loading personnel:', err);
+        setError('Failed to load personnel data');
       } finally {
         setLoading(false);
       }
     };
 
     loadPersonnel();
-  }, []);
-
-  // Auth state observer
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setIsUserAdmin(isAdmin(user));
-    });
-
-    return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const toggleRole = (roleId) => {
     setExpandedRoles({
@@ -197,12 +177,12 @@ export default function Dashboard() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
+      setLoginError('');
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setShowLoginModal(false);
-      setLoginError('');
     } catch (error) {
-      setLoginError('Invalid email or password');
       console.error('Login error:', error);
+      setLoginError('Invalid email or password');
     }
   };
 
