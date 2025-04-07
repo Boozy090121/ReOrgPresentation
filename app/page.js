@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle, 
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save } from 'lucide-react';
+import { db } from './firebase/config';
+import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 // Main Dashboard component
 export default function Home() {
@@ -14,44 +16,45 @@ export default function Home() {
   const [newPersonName, setNewPersonName] = useState('');
   const [draggedPerson, setDraggedPerson] = useState(null);
   const [showAddPersonModal, setShowAddPersonModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Client-side only code
+  // Load personnel from Firebase
   useEffect(() => {
-    // Load saved personnel if available
-    const savedPersonnel = localStorage.getItem('pciPersonnel');
-    if (savedPersonnel) {
-      setPersonnel(JSON.parse(savedPersonnel));
-    } else {
-      // Initialize with some example personnel
-      const initialPersonnel = [
-        { id: 1, name: "Jane Smith", assignedRole: null },
-        { id: 2, name: "John Doe", assignedRole: null },
-        { id: 3, name: "Alice Johnson", assignedRole: null },
-        { id: 4, name: "Bob Williams", assignedRole: null },
-        { id: 5, name: "Carol Martinez", assignedRole: null },
-      ];
-      setPersonnel(initialPersonnel);
-      localStorage.setItem('pciPersonnel', JSON.stringify(initialPersonnel));
-    }
-    
-    // Add window beforeunload handler
-    const handleBeforeUnload = () => {
-      localStorage.setItem('pciPersonnel', JSON.stringify(personnel));
+    const loadPersonnel = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'personnel'));
+        const loadedPersonnel = [];
+        querySnapshot.forEach((doc) => {
+          loadedPersonnel.push({ id: doc.id, ...doc.data() });
+        });
+        
+        if (loadedPersonnel.length === 0) {
+          // Initialize with some example personnel if none exists
+          const initialPersonnel = [
+            { id: '1', name: "Jane Smith", assignedRole: null },
+            { id: '2', name: "John Doe", assignedRole: null },
+            { id: '3', name: "Alice Johnson", assignedRole: null },
+            { id: '4', name: "Bob Williams", assignedRole: null },
+            { id: '5', name: "Carol Martinez", assignedRole: null },
+          ];
+          
+          // Save initial personnel to Firebase
+          for (const person of initialPersonnel) {
+            await setDoc(doc(db, 'personnel', person.id), person);
+          }
+          setPersonnel(initialPersonnel);
+        } else {
+          setPersonnel(loadedPersonnel);
+        }
+      } catch (error) {
+        console.error('Error loading personnel:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
+
+    loadPersonnel();
   }, []);
-
-  // Save personnel when it changes
-  useEffect(() => {
-    if (personnel.length > 0) {
-      localStorage.setItem('pciPersonnel', JSON.stringify(personnel));
-    }
-  }, [personnel]);
 
   const toggleRole = (roleId) => {
     setExpandedRoles({
@@ -68,34 +71,55 @@ export default function Home() {
     });
   };
   
-  const addNewPerson = () => {
+  const addNewPerson = async () => {
     if (newPersonName.trim()) {
-      const newPerson = {
-        id: personnel.length > 0 ? Math.max(...personnel.map(p => p.id)) + 1 : 1,
-        name: newPersonName.trim(),
-        assignedRole: null
-      };
-      
-      const updatedPersonnel = [...personnel, newPerson];
-      setPersonnel(updatedPersonnel);
-      localStorage.setItem('pciPersonnel', JSON.stringify(updatedPersonnel));
-      setNewPersonName('');
-      setShowAddPersonModal(false);
+      try {
+        const newId = (personnel.length > 0 ? Math.max(...personnel.map(p => parseInt(p.id))) + 1 : 1).toString();
+        const newPerson = {
+          id: newId,
+          name: newPersonName.trim(),
+          assignedRole: null
+        };
+        
+        // Save to Firebase
+        await setDoc(doc(db, 'personnel', newId), newPerson);
+        
+        setPersonnel([...personnel, newPerson]);
+        setNewPersonName('');
+        setShowAddPersonModal(false);
+      } catch (error) {
+        console.error('Error adding new person:', error);
+      }
     }
   };
   
-  const removePerson = (personId) => {
-    const updatedPersonnel = personnel.map(person => 
-      person.id === personId ? { ...person, assignedRole: null } : person
-    );
-    setPersonnel(updatedPersonnel);
-    localStorage.setItem('pciPersonnel', JSON.stringify(updatedPersonnel));
+  const removePerson = async (personId) => {
+    try {
+      // Update in Firebase
+      await updateDoc(doc(db, 'personnel', personId), { assignedRole: null });
+      
+      const updatedPersonnel = personnel.map(person => 
+        person.id === personId ? { ...person, assignedRole: null } : person
+      );
+      setPersonnel(updatedPersonnel);
+    } catch (error) {
+      console.error('Error removing person:', error);
+    }
   };
   
-  const clearAllAssignments = () => {
-    const updatedPersonnel = personnel.map(person => ({ ...person, assignedRole: null }));
-    setPersonnel(updatedPersonnel);
-    localStorage.setItem('pciPersonnel', JSON.stringify(updatedPersonnel));
+  const clearAllAssignments = async () => {
+    try {
+      // Update all personnel in Firebase
+      const batch = personnel.map(person => 
+        updateDoc(doc(db, 'personnel', person.id), { assignedRole: null })
+      );
+      await Promise.all(batch);
+      
+      const updatedPersonnel = personnel.map(person => ({ ...person, assignedRole: null }));
+      setPersonnel(updatedPersonnel);
+    } catch (error) {
+      console.error('Error clearing assignments:', error);
+    }
   };
   
   const saveToFile = () => {
@@ -124,20 +148,34 @@ export default function Home() {
     e.preventDefault();
   };
   
-  const handleDrop = (roleId) => {
+  const handleDrop = async (roleId) => {
     if (draggedPerson) {
-      const updatedPersonnel = personnel.map(person => {
-        if (person.id === draggedPerson.id) {
-          return { ...person, assignedRole: roleId };
-        }
-        return person;
-      });
-      
-      setPersonnel(updatedPersonnel);
-      localStorage.setItem('pciPersonnel', JSON.stringify(updatedPersonnel));
-      setDraggedPerson(null);
+      try {
+        // Update in Firebase
+        await updateDoc(doc(db, 'personnel', draggedPerson.id), { assignedRole: roleId });
+        
+        const updatedPersonnel = personnel.map(person => {
+          if (person.id === draggedPerson.id) {
+            return { ...person, assignedRole: roleId };
+          }
+          return person;
+        });
+        
+        setPersonnel(updatedPersonnel);
+        setDraggedPerson(null);
+      } catch (error) {
+        console.error('Error updating assignment:', error);
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
