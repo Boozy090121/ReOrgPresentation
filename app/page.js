@@ -8,7 +8,7 @@ import { db } from './firebase/config';
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 // Main Dashboard component
-export default function Home() {
+export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('structure');
   const [expandedRoles, setExpandedRoles] = useState({});
   const [expandedCategories, setExpandedCategories] = useState({});
