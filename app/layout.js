@@ -1,8 +1,11 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'PCI Quality Organization',
-  description: 'PCI Quality Organization Dashboard',
+  title: 'ReOrgPresentation',
+  description: 'Reorganization presentation tool',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({ children }) {
