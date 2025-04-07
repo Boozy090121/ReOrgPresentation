@@ -2,20 +2,46 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
+import dynamic from 'next/dynamic';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle,
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save, Trash2 } from 'lucide-react';
 import { getDbInstance } from './firebase/config';
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, addDoc, writeBatch } from 'firebase/firestore';
 import { roles, timelineData, colors, timelineInitialData, initialBudgetData } from '../lib/data';
-import RoleCard from '../components/RoleCard';
-import OrgStructure from '../components/OrgStructure';
-import AvailablePersonnel from '../components/AvailablePersonnel';
 import Timeline from '../components/Timeline';
 import Budget from '../components/Budget';
 import AuthSection from '../components/AuthSection';
 import WorkloadAnalysis from '../components/WorkloadAnalysis';
 import { useAuth } from '../lib/hooks/useAuth';
 import { useInlineEditing } from '../lib/hooks/useInlineEditing';
+
+// Dynamically import components relying heavily on client-side logic/DOM
+const OrgStructure = dynamic(() => import('../components/OrgStructure'), {
+  ssr: false,
+  loading: () => <div className="loading-container">Loading Structure...</div>
+});
+
+const AvailablePersonnel = dynamic(() => import('../components/AvailablePersonnel'), {
+  ssr: false,
+  loading: () => <div className="loading-container">Loading Personnel...</div>
+});
+
+// Consider dynamic import for RoleCard if OrgStructure still fails, as it's nested
+const RoleCard = dynamic(() => import('../components/RoleCard'), {
+  ssr: false, 
+  loading: () => <div className="loading-container">Loading Role...</div>
+});
+
+// Dynamically import Timeline and Budget as they use inline editing context
+const Timeline = dynamic(() => import('../components/Timeline'), {
+  ssr: false, 
+  loading: () => <div className="loading-container">Loading Timeline...</div>
+});
+
+const Budget = dynamic(() => import('../components/Budget'), {
+  ssr: false, 
+  loading: () => <div className="loading-container">Loading Budget...</div>
+});
 
 // Main Dashboard component
 export default function Dashboard() {
@@ -43,29 +69,27 @@ export default function Dashboard() {
   // Data Loading Effect (depends on user authentication)
   useEffect(() => {
     console.log("Data loading effect triggered. LoadingAuth:", loadingAuth, "User:", !!user);
-    // Load data once authentication state is resolved (user might be null)
     if (!loadingAuth) {
       console.log("Auth resolved. Starting data load (User:", user ? user.uid : 'none', ")");
       const loadAllData = async () => {
         setError(null);
-        setInitialDataLoaded(false); // Ensure loading state is true initially
+        setInitialDataLoaded(false);
         console.log("loadAllData called...");
         try {
-           // Check if db is available before loading
            const db = getDbInstance();
            if (!db) {
-               console.error("loadAllData: DB not available!");
-               throw new Error("Database connection not available.");
+               console.error("Initial Load: DB not available!");
+               setError("Database connection error on initial load. Please refresh.");
+               setInitialDataLoaded(false);
+               return;
            }
-          // Refetch or load initial data here
-           console.log("Loading personnel...");
-           const loadedPersonnel = await loadPersonnel();
-           console.log("Loading timeline...");
-           const loadedTimelineData = await loadTimeline();
-           console.log("Loading budget...");
-           const loadedBudget = await loadBudget();
+          console.log("Loading personnel...");
+          const loadedPersonnel = await loadPersonnel();
+          console.log("Loading timeline...");
+          const loadedTimelineData = await loadTimeline();
+          console.log("Loading budget...");
+          const loadedBudget = await loadBudget();
 
-          // Ensure data is set correctly, even if some loads returned defaults
           console.log("Setting state with loaded data...");
           setPersonnel(loadedPersonnel || []);
           setTimeline(loadedTimelineData || []);
@@ -75,48 +99,46 @@ export default function Dashboard() {
         } catch (err) {
           console.error("Error within loadAllData:", err);
           setError(`Failed to load application data: ${err.message}. Please try refreshing.`);
-          setInitialDataLoaded(false); // Explicitly set to false on error
+          setInitialDataLoaded(false);
         }
       };
       loadAllData();
     } else {
       console.log("Auth not yet resolved (loadingAuth is true).");
-       // Reset data while auth is loading?
-       setInitialDataLoaded(false); // Reset loading state
+       setInitialDataLoaded(false);
        setPersonnel([]);
        setTimeline([]);
        setBudgetData({});
        setError(null);
     }
-  // Depend on auth loading state and user status (to reload if user logs in/out)
-  }, [loadingAuth, user, loadPersonnel, loadTimeline, loadBudget]); // Add loader functions as dependencies
+  }, [loadingAuth, user, loadPersonnel, loadTimeline, loadBudget]);
   
   // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
   const loadPersonnel = useCallback(async () => {
-    const db = getDbInstance(); // Get DB instance when function is called
+    const db = getDbInstance();
     if (!db) {
         console.error("Load Personnel: DB not available");
         setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
-        return []; // Return empty array on DB error
+        return [];
     }
     try {
         const querySnapshot = await getDocs(collection(db, 'personnel'));
         const loadedPersonnel = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         console.log("Personnel loaded:", loadedPersonnel.length);
-        return loadedPersonnel; // Return the data
+        return loadedPersonnel;
     } catch (err) {
         console.error("Error loading personnel:", err);
         setError(prev => prev ? prev + "\nFailed to load personnel." : "Failed to load personnel.");
-        return []; // Return empty array on fetch error
+        return [];
     }
   }, [setError]);
 
   const loadTimeline = useCallback(async () => {
-    const db = getDbInstance(); // Get DB instance
+    const db = getDbInstance();
     if (!db) {
         console.error("Load Timeline: DB not available");
         setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
-        return []; // Return empty array
+        return [];
     }
     try {
         const docRef = doc(db, 'timeline', 'current');
@@ -127,30 +149,24 @@ export default function Dashboard() {
           loadedTimeline = data && Array.isArray(data.phases) ? data.phases : timelineInitialData;
         } else {
           loadedTimeline = timelineInitialData;
-          if (db) { // Check db again before writing
-              await setDoc(docRef, { phases: timelineInitialData });
-              console.log("Timeline document created.");
-          } else {
-              console.error("Timeline creation failed: DB not available");
-              setError(prev => prev ? prev + "\nFailed to create timeline." : "Failed to create timeline.");
-              // Still return initial data if creation fails?
-          }
+          await setDoc(docRef, { phases: timelineInitialData });
+          console.log("Timeline document created.");
         }
         console.log("Timeline loaded:", loadedTimeline.length, "phases");
         return loadedTimeline;
     } catch (err) {
         console.error("Error loading timeline:", err);
         setError(prev => prev ? prev + "\nFailed to load timeline." : "Failed to load timeline.");
-        return timelineInitialData; // Return initial data on error
+        return timelineInitialData;
     }
   }, [setError]);
 
   const loadBudget = useCallback(async () => {
-     const db = getDbInstance(); // Get DB instance
+     const db = getDbInstance();
      if (!db) {
         console.error("Load Budget: DB not available");
         setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
-        return {}; // Return empty object
+        return {};
      }
      try {
         const docRef = doc(db, 'budget', 'current');
@@ -161,21 +177,15 @@ export default function Dashboard() {
           loadedBudget = data && typeof data.factories === 'object' && data.factories !== null ? data.factories : initialBudgetData;
         } else {
           loadedBudget = initialBudgetData;
-           if (db) { // Check db again before writing
-              await setDoc(docRef, { factories: initialBudgetData });
-              console.log("Budget document created with initial factory data.");
-           } else {
-               console.error("Budget creation failed: DB not available");
-               setError(prev => prev ? prev + "\nFailed to create budget." : "Failed to create budget.");
-               // Still return initial data if creation fails?
-           }
+          await setDoc(docRef, { factories: initialBudgetData });
+          console.log("Budget document created with initial factory data.");
         }
         console.log("Budget loaded:", Object.keys(loadedBudget).length, "factories");
         return loadedBudget;
     } catch (err) {
         console.error("Error loading budget:", err);
         setError(prev => prev ? prev + "\nFailed to load budget." : "Failed to load budget.");
-        return initialBudgetData; // Return initial data on error
+        return initialBudgetData;
     }
   }, [setError]);
 
@@ -186,14 +196,12 @@ export default function Dashboard() {
     }
     setDraggedPerson(person);
     e.dataTransfer.effectAllowed = 'move';
-    // Add class directly to the element being dragged
     if (e.currentTarget) {
         e.currentTarget.classList.add('dragging');
     }
   };
 
   const handleDragEnd = (e) => {
-    // Remove class from the element that was dragged
     if (e.currentTarget) {
         e.currentTarget.classList.remove('dragging');
     }
@@ -210,8 +218,7 @@ export default function Dashboard() {
   };
 
   const handleDropOnRole = async (roleKey) => {
-    const db = getDbInstance(); // Get DB instance
-    // Add db check and draggedPerson check
+    const db = getDbInstance();
     if (!draggedPerson || !isUserAdmin || !db) {
         if (!db) setError("Database error. Cannot assign role.");
         if (!draggedPerson) setError("Drag error. Please try again.");
@@ -221,20 +228,17 @@ export default function Dashboard() {
     const personId = draggedPerson.id;
     const previousRole = draggedPerson.assignedRole;
 
-    // Check if personId is valid before proceeding
     if (!personId) {
         setError("Cannot assign role: Invalid person data.");
         console.error("handleDropOnRole: Missing personId in draggedPerson", draggedPerson);
         return;
     }
 
-    if (previousRole === roleKey) return; // No change needed
+    if (previousRole === roleKey) return;
 
-    // Optimistic UI update
     setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: roleKey } : p));
 
     try {
-      // Ensure db is still available (might not be necessary due to initial check, but safe)
       if (!db) throw new Error("Database connection lost during update.");
       await updateDoc(doc(db, 'personnel', personId), {
         assignedRole: roleKey,
@@ -244,36 +248,30 @@ export default function Dashboard() {
     } catch (err) {
       setError('Failed to assign role. Reverting change.');
       console.error('Error updating assignment:', err);
-      // Revert optimistic update
       setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: previousRole } : p));
     }
   };
 
   const handleDropOnAvailable = async () => {
-    const db = getDbInstance(); // Get DB instance
-    // Add db check and draggedPerson check
+    const db = getDbInstance();
     if (!draggedPerson || !draggedPerson.assignedRole || !isUserAdmin || !db) {
         if (!db) setError("Database error. Cannot unassign role.");
         if (!draggedPerson) setError("Drag error. Please try again.");
-        // Don't set error if just assignedRole is missing, means they are already available
         return;
     }
     setError(null);
     const personId = draggedPerson.id;
     const previousRole = draggedPerson.assignedRole;
 
-    // Check personId
     if (!personId) {
         setError("Cannot unassign role: Invalid person data.");
          console.error("handleDropOnAvailable: Missing personId in draggedPerson", draggedPerson);
         return;
     }
 
-    // Optimistic UI update
     setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: null } : p));
 
     try {
-      // Ensure db is still available
       if (!db) throw new Error("Database connection lost during update.");
       await updateDoc(doc(db, 'personnel', personId), {
         assignedRole: null,
@@ -283,15 +281,13 @@ export default function Dashboard() {
     } catch (err) {
       setError('Failed to unassign role. Reverting change.');
       console.error('Error updating assignment to null:', err);
-       // Revert optimistic update
-      setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: previousRole } : p));
+       setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: previousRole } : p));
     }
   };
 
   const handleDragEnter = (e) => {
     if (!isUserAdmin || !draggedPerson) return;
     e.preventDefault();
-    // Add class to the drop target
     if (e.currentTarget) {
         e.currentTarget.classList.add('drag-over');
     }
@@ -300,21 +296,17 @@ export default function Dashboard() {
   const handleDragLeave = (e) => {
     if (!isUserAdmin) return;
     e.preventDefault();
-    // Check if leaving to a child element before removing the class
     if (e.relatedTarget && e.currentTarget && e.currentTarget.contains(e.relatedTarget)) {
       return;
     }
-    // Remove class from the drop target
     if (e.currentTarget) {
         e.currentTarget.classList.remove('drag-over');
     }
   };
 
-  // Handlers specifically for the Available Personnel drop zone
   const handleDragEnterAvailable = (e) => {
     if (!isUserAdmin || !draggedPerson) return;
     e.preventDefault();
-    // Add a specific class to indicate this drop zone is active
     if (e.currentTarget) {
         e.currentTarget.classList.add('drag-over-available'); 
     }
@@ -323,7 +315,6 @@ export default function Dashboard() {
   const handleDragLeaveAvailable = (e) => {
     if (!isUserAdmin) return;
     e.preventDefault();
-    // Check if leaving to a child element before removing the class
     if (e.relatedTarget && e.currentTarget && e.currentTarget.contains(e.relatedTarget)) {
       return; 
     }
@@ -333,14 +324,13 @@ export default function Dashboard() {
   };
 
   const getOriginalText = useCallback((id) => {
-    // Basic validation of id
     if (!id || typeof id !== 'string') {
         console.warn("getOriginalText called with invalid id:", id);
         return '';
     }
     
     const parts = id.split('-');
-    if (parts.length < 3) { // Minimum parts needed (e.g., type-id-field)
+    if (parts.length < 3) {
          console.warn("getOriginalText: Invalid ID format", id);
          return '';
     }
@@ -348,17 +338,15 @@ export default function Dashboard() {
 
     try {
         if (type === 'timeline') {
-            if (parts.length < 3) return ''; // Need at least type-index-field
+            if (parts.length < 3) return '';
             const phaseIndex = parseInt(parts[1], 10);
-            const field = parts[2]; // 'phase' or 'timeframe' or 'activity'
+            const field = parts[2];
             
-            // Check timeline array, phaseIndex validity, and field name
             if (!Array.isArray(timeline) || isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= timeline.length || !field) {
                 console.warn(`getOriginalText(timeline): Invalid index or data for id ${id}`);
                 return '';
             }
             const phase = timeline[phaseIndex];
-            // Check if phase object exists
             if (!phase) {
                  console.warn(`getOriginalText(timeline): Phase at index ${phaseIndex} is missing for id ${id}`);
                  return '';
@@ -367,39 +355,35 @@ export default function Dashboard() {
             if (field === 'phase') return String(phase.phase ?? '');
             if (field === 'timeframe') return String(phase.timeframe ?? '');
             if (field === 'activity') {
-                if (parts.length < 4) return ''; // Need type-index-activity-index
+                if (parts.length < 4) return '';
                 const activityIndex = parseInt(parts[3], 10);
-                // Check activities array and activityIndex validity
                 if (!Array.isArray(phase.activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= phase.activities.length) {
                      console.warn(`getOriginalText(timeline): Invalid activity index or data for id ${id}`);
                      return '';
                 }
-                // Return activity, ensure it's a string
                 return String(phase.activities[activityIndex] ?? '');
             }
         } else if (type === 'budget') {
-            if (parts.length < 3) return ''; // Need type-factoryId-field
+            if (parts.length < 3) return '';
             const factoryId = parts[1];
-            const categoryKey = parts[2]; // 'personnelCosts' or 'operationalExpenses' or 'productionVolume' or 'factoryName'
+            const categoryKey = parts[2];
             
-            // Check budgetData, factoryId validity
             if (!budgetData || typeof budgetData !== 'object' || !factoryId || !budgetData[factoryId]) {
                 console.warn(`getOriginalText(budget): Invalid factoryId or budgetData for id ${id}`);
                 return '';
             }
             const factory = budgetData[factoryId];
-            if (!factory) return ''; // Should be caught above, but safe check
+            if (!factory) return '';
 
             if (categoryKey === 'factoryName') return String(factory.name ?? '');
             if (categoryKey === 'productionVolume') return String(factory.productionVolume ?? '');
 
             if (categoryKey === 'personnelCosts') {
-                 if (parts.length < 6) return ''; // type-factory-personnelCosts-category-index-field
+                 if (parts.length < 6) return '';
                  const personnelCategoryKey = parts[3];
                  const roleIndex = parseInt(parts[4], 10);
                  const roleField = parts[5];
 
-                 // Check personnelCosts object, specific category, roles array, roleIndex validity, roleField name
                  if (!factory.personnelCosts || typeof factory.personnelCosts !== 'object' || 
                      !factory.personnelCosts[personnelCategoryKey] || 
                      !Array.isArray(factory.personnelCosts[personnelCategoryKey].roles) ||
@@ -410,19 +394,16 @@ export default function Dashboard() {
                      }
                  
                  const role = factory.personnelCosts[personnelCategoryKey].roles[roleIndex];
-                 // Check role object exists
                  if (!role) {
                       console.warn(`getOriginalText(budget): Role at index ${roleIndex} missing for id ${id}`);
                       return '';
                  }
-                 // Access role field safely, convert null/undefined to empty string
                  return String(role[roleField] ?? ''); 
 
             } else if (categoryKey === 'operationalExpenses') {
-                 if (parts.length < 5) return ''; // type-factory-operationalExpenses-index-field
+                 if (parts.length < 5) return '';
                  const opExIndex = parseInt(parts[3], 10);
                  const opExField = parts[4];
-                  // Check operationalExpenses array, opExIndex validity, opExField name
                   if (!Array.isArray(factory.operationalExpenses) || 
                       isNaN(opExIndex) || opExIndex < 0 || opExIndex >= factory.operationalExpenses.length || 
                       !opExField) {
@@ -430,49 +411,40 @@ export default function Dashboard() {
                           return '';
                       }
                   const item = factory.operationalExpenses[opExIndex];
-                  // Check item object exists
                   if (!item) {
                       console.warn(`getOriginalText(budget): OpEx item at index ${opExIndex} missing for id ${id}`);
                       return '';
                   }
-                  // Access item field safely, convert null/undefined to empty string
                   return String(item[opExField] ?? '');
             }
         } else if (type === 'personnel') {
-            if (parts.length < 3) return ''; // type-personId-field
+            if (parts.length < 3) return '';
             const personId = parts[1];
-            const field = parts[2]; // Now can be 'name', 'skills', 'notes'
-            // Check personnel array and field name
+            const field = parts[2];
             if (!Array.isArray(personnel) || !personId || !field) {
                  console.warn(`getOriginalText(personnel): Invalid id format or data for id ${id}`);
                  return '';
             }
-            const person = personnel.find(p => p && p.id === personId); // Add check for p itself
-            // Check person object was found
+            const person = personnel.find(p => p && p.id === personId);
             if (!person) {
                  console.warn(`getOriginalText(personnel): Person with id ${personId} not found.`);
                  return '';
             }
-            // Access field safely, convert null/undefined to empty string
-            // Handle skills array specifically if needed, otherwise treat as string for editing
             if (field === 'skills' && Array.isArray(person.skills)) {
-                return person.skills.join(', '); // Convert array to comma-separated string for editing
+                return person.skills.join(', ');
             }
-            return String(person[field] ?? ''); // Default conversion for name, notes, etc.
+            return String(person[field] ?? '');
         }
     } catch (error) {
-        // Catch potential errors during parsing or access
         console.error("Error in getOriginalText for id:", id, error);
         return '';
     }
     
-    // Default return if id format or type not recognized
     console.warn("getOriginalText: Unrecognized ID format or type:", id);
     return '';
   }, [personnel, timeline, budgetData]);
 
   const updateLocalState = useCallback((id, value) => {
-    // Basic validation of id
     if (!id || typeof id !== 'string') {
         console.warn("updateLocalState called with invalid id:", id);
         return;
@@ -488,14 +460,12 @@ export default function Dashboard() {
     try {
         if (type === 'timeline') {
             setTimeline(prev => {
-                // Add check for prev being an array
                 if (!Array.isArray(prev)) return prev;
-                const newTimeline = JSON.parse(JSON.stringify(prev)); // Deep copy
+                const newTimeline = JSON.parse(JSON.stringify(prev));
                 if (parts.length < 3) return prev;
                 const phaseIndex = parseInt(parts[1], 10);
                 const field = parts[2];
                 
-                // Validate index and field
                 if (isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= newTimeline.length || !field || !newTimeline[phaseIndex]) return prev;
 
                 if (field === 'phase') newTimeline[phaseIndex].phase = value;
@@ -503,7 +473,6 @@ export default function Dashboard() {
                 else if (field === 'activity') {
                     if (parts.length < 4) return prev;
                     const activityIndex = parseInt(parts[3], 10);
-                    // Validate activities array and index
                     if (!Array.isArray(newTimeline[phaseIndex].activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= newTimeline[phaseIndex].activities.length) return prev;
                     newTimeline[phaseIndex].activities[activityIndex] = value;
                 }
@@ -511,20 +480,17 @@ export default function Dashboard() {
             });
         } else if (type === 'budget') {
             setBudgetData(prev => {
-                // Add check for prev being an object
                 if (!prev || typeof prev !== 'object') return prev;
                 const newBudgetData = JSON.parse(JSON.stringify(prev));
                 if (parts.length < 3) return prev;
                 const factoryId = parts[1];
                 const categoryKey = parts[2];
                 
-                // Validate factoryId and existence
                 if (!factoryId || !newBudgetData[factoryId]) return prev;
 
                 if (categoryKey === 'factoryName') {
                     newBudgetData[factoryId].name = value;
                 } else if (categoryKey === 'productionVolume') {
-                    // Attempt to convert to number, default to 0 if invalid
                     const numValue = Number(value);
                     newBudgetData[factoryId].productionVolume = isNaN(numValue) ? 0 : numValue;
                 } else if (categoryKey === 'personnelCosts') {
@@ -532,7 +498,6 @@ export default function Dashboard() {
                     const personnelCategoryKey = parts[3];
                     const roleIndex = parseInt(parts[4], 10);
                     const roleField = parts[5];
-                    // Validate path
                     if (!newBudgetData[factoryId].personnelCosts || typeof newBudgetData[factoryId].personnelCosts !== 'object' || 
                         !newBudgetData[factoryId].personnelCosts[personnelCategoryKey] || 
                         !Array.isArray(newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles) ||
@@ -540,7 +505,6 @@ export default function Dashboard() {
                         !roleField || !newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex]) return prev;
                     
                     const currentRole = newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex];
-                    // Handle numeric fields like 'count'
                     if (roleField === 'count') {
                          const numValue = Number(value);
                          currentRole[roleField] = isNaN(numValue) ? 0 : numValue;
@@ -552,13 +516,11 @@ export default function Dashboard() {
                     if (parts.length < 5) return prev;
                     const opExIndex = parseInt(parts[3], 10);
                     const opExField = parts[4];
-                    // Validate path
                     if (!Array.isArray(newBudgetData[factoryId].operationalExpenses) || 
                         isNaN(opExIndex) || opExIndex < 0 || opExIndex >= newBudgetData[factoryId].operationalExpenses.length || 
                         !opExField || !newBudgetData[factoryId].operationalExpenses[opExIndex]) return prev;
 
                     const currentItem = newBudgetData[factoryId].operationalExpenses[opExIndex];
-                    // Handle numeric fields like 'amount'
                     if (opExField === 'amount') {
                        const numValue = Number(value);
                        currentItem[opExField] = isNaN(numValue) ? 0 : numValue;
@@ -570,21 +532,18 @@ export default function Dashboard() {
             });
         } else if (type === 'personnel') {
             setPersonnel(prev => {
-                // Check prev is array
-                 if (!Array.isArray(prev)) return prev;
+                if (!Array.isArray(prev)) return prev;
                 if (parts.length < 3) return prev;
                 const personId = parts[1];
-                const field = parts[2]; // Can be 'name', 'skills', 'notes'
-                if (!personId || !field) return prev; // No id or field specified
+                const field = parts[2];
+                if (!personId || !field) return prev;
                 
                 const newPersonnel = prev.map(p => {
-                    // Check p exists and has id
                     if (p && p.id === personId) {
                         let updatedValue = value;
-                        // If updating skills, convert comma-separated string back to array
                         if (field === 'skills' && typeof value === 'string') {
-                           updatedValue = value.split(',').map(s => s.trim()).filter(Boolean); // Split, trim, remove empty strings
-                        } else if (field === 'experience') { // Keep existing numeric conversion for experience
+                           updatedValue = value.split(',').map(s => s.trim()).filter(Boolean);
+                        } else if (field === 'experience') {
                            const numValue = Number(value);
                            updatedValue = isNaN(numValue) ? 0 : numValue;
                         }
@@ -601,16 +560,15 @@ export default function Dashboard() {
     }
   }, [setError]);
 
-  // Helper to update Firestore
   const updateFirestoreData = useCallback(async (id, value) => {
-    const db = getDbInstance(); // Get DB instance
+    const db = getDbInstance();
     if (!id || typeof id !== 'string' || !db) {
         if (!db) setError("Database error. Cannot save changes.");
         else setError("Invalid data reference. Cannot save changes.");
-        return false; // Indicate failure
+        return false;
     }
 
-    const parts = id.split('-'); // Ensure parenthesis is correct here!
+    const parts = id.split('-');
     if (parts.length < 3) {
         setError("Invalid data structure for saving.");
         return false;
@@ -619,7 +577,6 @@ export default function Dashboard() {
 
     try {
         if (type === 'timeline') {
-            // Direct update for timeline fields
             const phaseIndex = parseInt(parts[1], 10);
             const field = parts[2];
             let activityIndex = null;
@@ -628,16 +585,12 @@ export default function Dashboard() {
                 activityIndex = parseInt(parts[3], 10);
             }
 
-            // Validate indices
             if (isNaN(phaseIndex) || phaseIndex < 0 || (activityIndex !== null && (isNaN(activityIndex) || activityIndex < 0))) {
                  throw new Error('Invalid index in timeline ID');
             }
 
-            // Construct the field path for Firestore update
             let fieldPath;
             if (activityIndex !== null) {
-                 // Ensure the activities array exists and the index is valid (fetch might be needed for full safety)
-                 // For simplicity, we assume the structure exists based on local state used for editing
                  fieldPath = `phases.${phaseIndex}.activities.${activityIndex}`;
             } else {
                  fieldPath = `phases.${phaseIndex}.${field}`;
@@ -649,14 +602,13 @@ export default function Dashboard() {
             return true;
 
         } else if (type === 'budget') {
-             // Direct update for budget fields
              const factoryId = parts[1];
              const categoryKey = parts[2];
 
              if (!factoryId) throw new Error('Missing factoryId in budget ID');
 
              let fieldPath = `factories.${factoryId}`;
-             let updateValue = value; // Default to the passed value
+             let updateValue = value;
 
              if (categoryKey === 'factoryName') {
                 fieldPath += '.name';
@@ -671,7 +623,7 @@ export default function Dashboard() {
                 const roleField = parts[5];
                 if (isNaN(roleIndex) || roleIndex < 0 || !personnelCategoryKey || !roleField) throw new Error('Invalid index/field in budget personnelCosts ID');
                 fieldPath += `.personnelCosts.${personnelCategoryKey}.roles.${roleIndex}.${roleField}`;
-                if (roleField === 'count') { // Handle numeric conversion
+                if (roleField === 'count') {
                     const numValue = Number(value);
                     updateValue = isNaN(numValue) ? 0 : numValue;
                 }
@@ -681,7 +633,7 @@ export default function Dashboard() {
                 const opExField = parts[4];
                  if (isNaN(opExIndex) || opExIndex < 0 || !opExField) throw new Error('Invalid index/field in budget operationalExpenses ID');
                 fieldPath += `.operationalExpenses.${opExIndex}.${opExField}`;
-                 if (opExField === 'amount') { // Handle numeric conversion
+                 if (opExField === 'amount') {
                      const numValue = Number(value);
                      updateValue = isNaN(numValue) ? 0 : numValue;
                  }
@@ -696,21 +648,19 @@ export default function Dashboard() {
 
         } else if (type === 'personnel') {
             const personId = parts[1];
-            const field = parts[2]; // 'name', 'experience', 'skills', 'notes'
+            const field = parts[2];
             if (!personId || !field) {
                  setError("Invalid personnel data for saving.");
                  return false;
             }
 
             let updateValue = value;
-            // If field is 'skills', convert comma-separated string to array for Firestore
             if (field === 'skills' && typeof value === 'string') {
                 updateValue = value.split(',').map(s => s.trim()).filter(Boolean);
-            } else if (field === 'experience') { // Handle numeric conversion for experience
+            } else if (field === 'experience') {
                 const numValue = Number(value);
                 updateValue = isNaN(numValue) ? 0 : numValue;
             }
-            // No special conversion needed for 'name' or 'notes' (assuming they are strings)
 
             const updateData = { [field]: updateValue, updatedAt: new Date() };
             await updateDoc(doc(db, 'personnel', personId), updateData);
@@ -727,9 +677,8 @@ export default function Dashboard() {
     }
   }, [setError]);
 
-  // Function to add a new person
   const addPersonnel = useCallback(async () => {
-    const db = getDbInstance(); // Get DB instance
+    const db = getDbInstance();
     if (!isUserAdmin || !db) {
       setError("Permission denied or database connection error. Cannot add personnel.");
       return;
@@ -738,16 +687,15 @@ export default function Dashboard() {
     const newPerson = {
       name: 'New Teammate',
       experience: 0,
-      assignedRole: null, // Start as unassigned
-      skills: [], // Default empty skills array
-      notes: '', // Default empty notes
+      assignedRole: null,
+      skills: [],
+      notes: '',
       createdAt: new Date(),
       updatedAt: new Date()
     };
     try {
       const docRef = await addDoc(collection(db, 'personnel'), newPerson);
       console.log("New person added with ID:", docRef.id);
-      // Update local state optimistically - ensure all fields match the created object
       const addedPersonData = { id: docRef.id, ...newPerson };
       setPersonnel(prev => [...prev, addedPersonData]);
     } catch (err) {
@@ -756,22 +704,16 @@ export default function Dashboard() {
     }
   }, [isUserAdmin, setError, setPersonnel]);
 
-  // Function to delete a person
   const deletePersonnel = useCallback(async (personId) => {
-    const db = getDbInstance(); // Get DB instance
+    const db = getDbInstance();
     if (!isUserAdmin || !db || !personId) {
       setError("Permission denied, invalid ID, or database connection error. Cannot delete personnel.");
       return;
     }
-    // Optional: Add a confirmation dialog here in a real app
-    // if (!window.confirm(`Are you sure you want to delete person ${personId}?`)) {
-    //   return;
-    // }
     setError(null);
     try {
       await deleteDoc(doc(db, 'personnel', personId));
       console.log("Deleted person with ID:", personId);
-      // Update local state
       setPersonnel(prev => prev.filter(p => p.id !== personId));
     } catch (err) {
       console.error("Error deleting personnel:", err);
@@ -779,9 +721,8 @@ export default function Dashboard() {
     }
   }, [isUserAdmin, setError, setPersonnel]);
 
-  // Function to save the entire timeline state to Firestore
   const saveTimelineChanges = useCallback(async () => {
-    const db = getDbInstance(); // Get DB instance
+    const db = getDbInstance();
     if (!isUserAdmin || !db) {
       setError("Permission denied or database error. Cannot save timeline changes.");
       return false;
@@ -789,7 +730,7 @@ export default function Dashboard() {
     setError(null);
     try {
       const timelineDocRef = doc(db, 'timeline', 'current');
-      await setDoc(timelineDocRef, { phases: timeline, updatedAt: new Date() }, { merge: true }); // Use setDoc with merge:true or updateDoc
+      await setDoc(timelineDocRef, { phases: timeline, updatedAt: new Date() }, { merge: true });
       console.log("Timeline changes saved successfully.");
       return true;
     } catch (err) {
@@ -799,9 +740,8 @@ export default function Dashboard() {
     }
   }, [isUserAdmin, timeline, setError]);
 
-  // Function to save the entire budget state to Firestore
   const saveBudgetChanges = useCallback(async () => {
-    const db = getDbInstance(); // Get DB instance
+    const db = getDbInstance();
     if (!isUserAdmin || !db) {
       setError("Permission denied or database error. Cannot save budget changes.");
       return false;
@@ -809,7 +749,7 @@ export default function Dashboard() {
     setError(null);
     try {
       const budgetDocRef = doc(db, 'budget', 'current');
-      await setDoc(budgetDocRef, { factories: budgetData, updatedAt: new Date() }, { merge: true }); // Use setDoc with merge:true or updateDoc
+      await setDoc(budgetDocRef, { factories: budgetData, updatedAt: new Date() }, { merge: true });
       console.log("Budget changes saved successfully.");
       return true;
     } catch (err) {
@@ -819,41 +759,32 @@ export default function Dashboard() {
     }
   }, [isUserAdmin, budgetData, setError]);
 
-  // Render helpers or main render logic
   const renderContent = () => {
-    // Handle Auth Loading State FIRST
     if (loadingAuth) {
         return <div className="loading-container">Authenticating...</div>;
     } 
 
-    // Handle Initial Data Loading State (after auth is resolved)
     if (!initialDataLoaded) {
          return <div className="loading-container">Loading data...</div>;
     }
 
-    // Handle DB connection error (after data load attempt)
     const db = getDbInstance();
     if (!db && ['structure', 'timeline', 'budget'].includes(activeTab)) {
-        // Check error state to avoid double messages if load already failed
         if (!error) {
-             setError("Database connection lost."); // Set error if not already set
+             setError("Database connection lost.");
         } 
-        // Always show error if db is missing for required tabs
         return <div className="error-container"><AlertCircle /> Database connection lost. Please refresh.</div>;
     }
 
-    // Handle general data loading errors
     if (error) {
         return (
            <div className="error-container">
              <AlertCircle size={48} color="#dc3545" />
              <h2>Application Error</h2>
-             {/* Ensure error is a string */} 
              <p>{typeof error === 'string' ? error : 'An unknown error occurred.'}</p>
              <button onClick={() => window.location.reload()} className="button-primary">
                 Refresh Page
              </button>
-             {/* Show sign out only if user exists */}
              {user && (
                <button onClick={signOut} className="button-secondary" style={{marginLeft: '10px'}}>
                   Sign Out
@@ -863,17 +794,15 @@ export default function Dashboard() {
          );
     }
 
-    // If auth resolved, data loaded, no errors, render the active tab
     switch (activeTab) {
        case 'structure':
-         // Data should be loaded here, pass isUserAdmin
          return Array.isArray(personnel) ? (
            <div className="structure-tab">
              <div className="hierarchy-column">
                <OrgStructure 
                           roles={roles} 
                           personnel={personnel}
-                          isUserAdmin={isUserAdmin} // Pass admin status
+                          isUserAdmin={isUserAdmin}
                           handleDropOnRole={handleDropOnRole}
                           handleDragEnter={handleDragEnter}
                           handleDragLeave={handleDragLeave}
@@ -889,13 +818,12 @@ export default function Dashboard() {
                           allRoles={roles} 
                />
              </div>
-             {/* Log removed, AvailablePersonnel receives isUserAdmin */}
              <AvailablePersonnel
                         personnel={personnel}
                         setPersonnel={setPersonnel} 
                         setError={setError}         
                         roles={roles}             
-                        isUserAdmin={isUserAdmin} // Pass admin status
+                        isUserAdmin={isUserAdmin}
                         handleDragStart={handleDragStart}
                         handleDragEnd={handleDragEnd}
                         handleDragOver={handleDragOver}
@@ -912,12 +840,12 @@ export default function Dashboard() {
                         deletePersonnel={deletePersonnel}
              />
           </div>
-         ) : <div className="loading-container">Loading structure components...</div>; // Fallback if personnel isn't array yet
+         ) : <div className="loading-container">Loading structure components...</div>;
        case 'timeline':
          return Array.isArray(timeline) ? (
            <Timeline 
               timeline={timeline} 
-              isUserAdmin={isUserAdmin} // Pass admin status
+              isUserAdmin={isUserAdmin}
               editingId={editingId}
               editText={editText}
               handleTextClick={handleTextClick}
@@ -931,7 +859,7 @@ export default function Dashboard() {
           return (budgetData && typeof budgetData === 'object') ? (
              <Budget 
                  budgetData={budgetData} 
-                 isUserAdmin={isUserAdmin} // Pass admin status
+                 isUserAdmin={isUserAdmin}
                  editingId={editingId}
                  editText={editText}
                  handleTextClick={handleTextClick}
@@ -946,7 +874,7 @@ export default function Dashboard() {
              <WorkloadAnalysis 
                  roles={roles} 
                  personnel={personnel} 
-                 isUserAdmin={isUserAdmin} // Pass admin status
+                 isUserAdmin={isUserAdmin}
              />
           ) : <div className="loading-container">Loading analysis data...</div>;
        default:
@@ -962,14 +890,10 @@ export default function Dashboard() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      {/* Render AuthSection permanently at the top/header if user is logged in */}
-      {/* Check user *before* rendering AuthSection with minimal prop */}
       {user && <AuthSection minimal={true} signOutAction={signOut} userEmail={user.email || 'User'}/>}
       
-      {/* Only show tabs if user is logged in */}
       {user && (
           <nav className="sidebar">
-            {/* Tab Buttons */}
             <button 
               className={`tab-button ${activeTab === 'structure' ? 'active' : ''}`}
               onClick={() => setActiveTab('structure')}
@@ -998,7 +922,7 @@ export default function Dashboard() {
       )}
 
       <main className={`main-content ${!user ? 'logged-out' : ''}`}>
-         {renderContent()} { /* Call the function to render content */}
+         {renderContent()}
       </main>
     </div>
   );
