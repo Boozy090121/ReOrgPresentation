@@ -28,9 +28,6 @@ export default function Dashboard() {
   const [budgetData, setBudgetData] = useState({});
   const [timeline, setTimeline] = useState([]);
 
-  // Import roles from lib/data where needed within the component
-  const { roles } = importedRoles; 
-
   // Use the Auth hook
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
 
