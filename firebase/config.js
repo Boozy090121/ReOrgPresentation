@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { getDoc, doc, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -38,7 +38,8 @@ export const isAdmin = async (user) => {
 // Function to create admin user
 export const createAdminUser = async () => {
   try {
-    const userCredential = await signInWithEmailAndPassword(
+    // First try to create the user
+    const userCredential = await createUserWithEmailAndPassword(
       auth,
       ADMIN_CREDENTIALS.email,
       ADMIN_CREDENTIALS.password
@@ -53,7 +54,27 @@ export const createAdminUser = async () => {
     console.log('Admin user created successfully');
     return userCredential.user;
   } catch (error) {
-    console.error('Error creating admin user:', error);
+    if (error.code === 'auth/email-already-in-use') {
+      // If user exists, try to sign in
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        ADMIN_CREDENTIALS.email,
+        ADMIN_CREDENTIALS.password
+      );
+      
+      // Check if user is in admins collection
+      const userDoc = await getDoc(doc(db, 'admins', userCredential.user.uid));
+      if (!userDoc.exists()) {
+        // Add to admins if not already there
+        await setDoc(doc(db, 'admins', userCredential.user.uid), {
+          email: ADMIN_CREDENTIALS.email,
+          createdAt: new Date()
+        });
+      }
+      
+      return userCredential.user;
+    }
+    console.error('Error creating/signing in admin user:', error);
     throw error;
   }
 };

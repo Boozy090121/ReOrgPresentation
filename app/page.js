@@ -131,29 +131,22 @@ export default function Dashboard() {
   // Load personnel from Firebase
   useEffect(() => {
     const loadPersonnel = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      
       try {
-        setLoading(true);
         const querySnapshot = await getDocs(collection(db, 'personnel'));
         const loadedPersonnel = [];
         querySnapshot.forEach((doc) => {
           loadedPersonnel.push({ id: doc.id, ...doc.data() });
         });
-        setPersonnel(loadedPersonnel);
-        setError(null);
-      } catch (err) {
-        console.error('Error loading personnel:', err);
-        setError('Failed to load personnel data');
-      } finally {
-        setLoading(false);
+        setPersonnel(loadedPersonnel || []);
+      } catch (error) {
+        console.error('Error loading personnel:', error);
+        setPersonnel([]);
       }
     };
 
-    loadPersonnel();
+    if (user) {
+      loadPersonnel();
+    }
   }, [user]);
 
   const toggleRole = (roleId) => {
@@ -272,21 +265,8 @@ export default function Dashboard() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        ADMIN_CREDENTIALS.email,
-        ADMIN_CREDENTIALS.password
-      );
-      
-      // Add user to admins collection if not already there
-      const userDoc = await getDoc(doc(db, 'admins', userCredential.user.uid));
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'admins', userCredential.user.uid), {
-          email: ADMIN_CREDENTIALS.email,
-          createdAt: new Date()
-        });
-      }
-      
+      // Try to create or sign in the admin user
+      await createAdminUser();
       setShowLoginModal(false);
       setLoginError('');
     } catch (error) {
@@ -391,14 +371,106 @@ export default function Dashboard() {
 
       {/* Tab Content */}
       {activeTab === 'structure' && (
-        <div>
-          {/* Organization Structure Content */}
-          {personnel.map((person) => (
-            <div key={person.id} className="personnel-card draggable">
-              <span>{person.name}</span>
-              <button onClick={() => removePerson(person.id)}>Remove</button>
+        <div className="organization-structure">
+          <div className="personnel-list">
+            <h3>Available Personnel</h3>
+            <div className="personnel-cards">
+              {personnel.filter(person => !person.assignedRole).map((person) => (
+                <div
+                  key={person.id}
+                  className="personnel-card draggable"
+                  draggable
+                  onDragStart={() => handleDragStart(person)}
+                >
+                  <span>{person.name}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          <div className="role-card">
+            <div className="role-header" onClick={() => toggleRole('director')}>
+              <h3>{roles.director.title}</h3>
+              <span>{expandedRoles.director ? <ChevronUp /> : <ChevronDown />}</span>
+            </div>
+            {expandedRoles.director && (
+              <div 
+                className="role-content"
+                onDragOver={handleDragOver}
+                onDrop={() => handleDrop('director')}
+              >
+                <h4>Responsibilities:</h4>
+                <ul>
+                  {roles.director.responsibilities.map((resp, index) => (
+                    <li key={index}>{resp}</li>
+                  ))}
+                </ul>
+                <div className="assigned-personnel">
+                  {personnel.filter(person => person.assignedRole === 'director').map(person => (
+                    <div key={person.id} className="assigned-person">
+                      {person.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="role-card">
+            <div className="role-header" onClick={() => toggleRole('systemsLead')}>
+              <h3>{roles.systemsLead.title}</h3>
+              <span>{expandedRoles.systemsLead ? <ChevronUp /> : <ChevronDown />}</span>
+            </div>
+            {expandedRoles.systemsLead && (
+              <div 
+                className="role-content"
+                onDragOver={handleDragOver}
+                onDrop={() => handleDrop('systemsLead')}
+              >
+                <h4>Responsibilities:</h4>
+                <ul>
+                  {roles.systemsLead.responsibilities.map((resp, index) => (
+                    <li key={index}>{resp}</li>
+                  ))}
+                </ul>
+                <div className="assigned-personnel">
+                  {personnel.filter(person => person.assignedRole === 'systemsLead').map(person => (
+                    <div key={person.id} className="assigned-person">
+                      {person.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="role-card">
+            <div className="role-header" onClick={() => toggleRole('qualityManager')}>
+              <h3>{roles.qualityManager.title}</h3>
+              <span>{expandedRoles.qualityManager ? <ChevronUp /> : <ChevronDown />}</span>
+            </div>
+            {expandedRoles.qualityManager && (
+              <div 
+                className="role-content"
+                onDragOver={handleDragOver}
+                onDrop={() => handleDrop('qualityManager')}
+              >
+                <h4>Responsibilities:</h4>
+                <ul>
+                  {roles.qualityManager.responsibilities.map((resp, index) => (
+                    <li key={index}>{resp}</li>
+                  ))}
+                </ul>
+                <div className="assigned-personnel">
+                  {personnel.filter(person => person.assignedRole === 'qualityManager').map(person => (
+                    <div key={person.id} className="assigned-person">
+                      {person.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
