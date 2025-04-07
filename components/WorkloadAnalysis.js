@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Download } from 'lucide-react';
 import { downloadCSV } from '../lib/utils';
 import { PRODUCTIVITY_METRICS, ROLE_TASK_MAPPING } from '../lib/data'; // Import from data.js
 
-const WorkloadAnalysis = ({ personnel, roles }) => { 
+const WorkloadAnalysis = ({ personnel, roles, isUserAdmin }) => { 
   const [workOrders, setWorkOrders] = useState({
     // Initial state with some example clients/tasks
     clientA_batchReview: 1500, 
@@ -13,6 +13,40 @@ const WorkloadAnalysis = ({ personnel, roles }) => {
 
   const [calculatedHeadcount, setCalculatedHeadcount] = useState({});
   const [availableHeadcount, setAvailableHeadcount] = useState({});
+
+  const chartData = useMemo(() => {
+    // Check if roles or personnel are missing
+    if (!roles || !personnel) return { labels: [], datasets: [] };
+
+    const roleHeadcounts = {};
+    const roleSalaries = {};
+    // Check roles before iteration
+    Object.keys(roles).forEach(roleKey => {
+       // Check roles[roleKey] before accessing title
+       const role = roles[roleKey];
+       if (role) {
+         roleHeadcounts[role.title || roleKey] = 0;
+         roleSalaries[role.title || roleKey] = getCostMidpoint(role.costRange);
+       }
+    });
+
+    // Check personnel before iteration
+    if (Array.isArray(personnel)) {
+        personnel.forEach(person => {
+           // Check person and person.assignedRole
+           if (person && person.assignedRole) {
+               const assignedRole = roles[person.assignedRole];
+               // Check assignedRole before accessing title
+               if (assignedRole) {
+                   const title = assignedRole.title || person.assignedRole;
+                   roleHeadcounts[title] = (roleHeadcounts[title] || 0) + 1;
+               }
+           }
+        });
+    }
+    
+    // ... rest of chartData preparation ...
+  }, [roles, personnel]);
 
   // Function to handle input changes
   const handleInputChange = (taskKey, value) => {
@@ -95,6 +129,11 @@ const WorkloadAnalysis = ({ personnel, roles }) => {
     downloadCSV(csvString, 'workload_analysis.csv');
   };
 
+  // Check for roles or personnel before rendering
+  if (!roles || !personnel) {
+    return <div className="workload-analysis-container">Loading analysis data...</div>;
+  }
+
   return (
     <div className="workload-analysis-container">
       <div className="section-header">
@@ -168,6 +207,13 @@ const WorkloadAnalysis = ({ personnel, roles }) => {
       {/* - Capacity vs Demand Visualization */} 
       {/* - What-if Scenario Planning */} 
       {/* - Staffing Gaps/Surpluses */} 
+
+      {/* Check if chartData is valid */} 
+      {chartData && chartData.labels && chartData.labels.length > 0 ? (
+         <div className="charts-container"> /* ... Chart components ... */ </div>
+       ) : (
+         <p>Not enough data to display charts.</p>
+       )}
 
     </div>
   );

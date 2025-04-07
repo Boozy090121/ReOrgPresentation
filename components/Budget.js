@@ -38,24 +38,40 @@ const Budget = ({
   handleTextChange
 }) => {
 
-  // Calculate factory totals using useMemo to avoid recalculation on every render
+  // Calculate factory summaries using useMemo
   const factorySummaries = useMemo(() => {
     if (!budgetData) return [];
 
-    return Object.entries(budgetData).map(([factoryId, factoryData]) => {
+    return Object.entries(budgetData).map(entry => { // Changed map signature
+      const factoryId = entry[0];
+      const factoryData = entry[1];
+      
+      // Check factoryData exists
+      if (!factoryData) {
+        return { factoryId, factoryData: {}, totalPersonnelCost: 0, totalOperationalExpenses: 0, totalBudget: 0, costPerUnit: 0, productionVolume: 0 };
+      }
+
       let totalPersonnelCost = 0;
+      // Check personnelCosts
       if (factoryData.personnelCosts) {
         Object.values(factoryData.personnelCosts).forEach(category => {
+          // Check category and category.roles
           if (category && Array.isArray(category.roles)) {
             category.roles.forEach(role => {
-              totalPersonnelCost += getCostMidpoint(role.costRange);
+               // Check role before accessing properties
+               if (role) {
+                   totalPersonnelCost += getCostMidpoint(role.costRange);
+               }
             });
           }
         });
       }
+      
+      // Check operationalExpenses
       const totalOperationalExpenses = Array.isArray(factoryData.operationalExpenses)
-        ? factoryData.operationalExpenses.reduce((sum, item) => sum + (item.amount || 0), 0)
+        ? factoryData.operationalExpenses.reduce((sum, item) => sum + (item ? (item.amount || 0) : 0), 0) // Check item
         : 0;
+        
       const totalBudget = totalPersonnelCost + totalOperationalExpenses;
       const productionVolume = factoryData.productionVolume || 0;
       const costPerUnit = productionVolume > 0 ? totalBudget / productionVolume : 0;
@@ -63,12 +79,11 @@ const Budget = ({
       return {
         factoryId,
         factoryData, // Keep original data for rendering tables
-        // Calculated values:
         totalPersonnelCost,
         totalOperationalExpenses,
         totalBudget,
         costPerUnit,
-        productionVolume // Include volume here too
+        productionVolume
       };
     });
   }, [budgetData]);
@@ -98,6 +113,8 @@ const Budget = ({
 
       <div className="factories-container">
         {factorySummaries.map(summary => {
+           // Check if summary and summary.factoryData exist
+           if (!summary || !summary.factoryData) return null;
           const { 
             factoryId, 
             factoryData, 
@@ -154,54 +171,60 @@ const Budget = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {factoryData.personnelCosts && Object.entries(factoryData.personnelCosts).map(([categoryKey, categoryData]) => (
-                    categoryData && categoryData.roles && (
+                  {factoryData.personnelCosts && Object.entries(factoryData.personnelCosts).map(([categoryKey, categoryData]) => {
+                    // Check categoryData and roles array
+                    if (!categoryData || !Array.isArray(categoryData.roles)) return null;
+                    return (
                       <React.Fragment key={`${factoryId}-${categoryKey}`}>
                         <tr><td colSpan="4" className="budget-category-title">{categoryData.title || categoryKey}</td></tr>
-                        {categoryData.roles.map((role, index) => (
-                          <tr key={`${factoryId}-${categoryKey}-${index}`}>
-                            <td></td>
-                            <td
-                               data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`}
-                               className="editable-text"
-                               contentEditable={isUserAdmin}
-                               suppressContentEditableWarning={true}
-                               onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                               onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`, role.title || '')}
-                               onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`)}
-                               onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`)}
-                               onInput={handleTextChange}
-                              >
-                               {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title` ? editText : (role.title || '')}
-                            </td>
-                            <td
-                               data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`}
-                               className="editable-text number-input"
-                                contentEditable={isUserAdmin}
-                                suppressContentEditableWarning={true}
-                                onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                                onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`, (role.count ?? '').toString())}
-                                onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`)}
-                                onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`)}
-                                onInput={handleTextChange}
-                               >
-                                {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count` ? editText : (role.count ?? '')}
-                            </td>
-                            <td
-                               data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`}
-                               className="editable-text"
-                                contentEditable={isUserAdmin}
-                                suppressContentEditableWarning={true}
-                                onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                                onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`, role.costRange || '')}
-                                onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`)}
-                                onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`)}
-                                onInput={handleTextChange}
-                               >
-                                {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange` ? editText : (role.costRange || '')}
-                            </td>
-                          </tr>
-                        ))}
+                        {categoryData.roles.map((role, index) => {
+                          // Check role object
+                          if (!role) return null;
+                          return (
+                            <tr key={`${factoryId}-${categoryKey}-${index}`}>
+                              <td></td>
+                              <td
+                                 data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`}
+                                 className="editable-text"
+                                 contentEditable={isUserAdmin}
+                                 suppressContentEditableWarning={true}
+                                 onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                                 onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`, role.title || '')}
+                                 onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`)}
+                                 onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title`)}
+                                 onInput={handleTextChange}
+                                >
+                                 {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-title` ? editText : (role.title || '')}
+                              </td>
+                              <td
+                                 data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`}
+                                 className="editable-text number-input"
+                                  contentEditable={isUserAdmin}
+                                  suppressContentEditableWarning={true}
+                                  onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                                  onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`, (role.count ?? '').toString())}
+                                  onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`)}
+                                  onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count`)}
+                                  onInput={handleTextChange}
+                                 >
+                                  {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-count` ? editText : (role.count ?? '')}
+                              </td>
+                              <td
+                                 data-edit-id={`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`}
+                                 className="editable-text"
+                                  contentEditable={isUserAdmin}
+                                  suppressContentEditableWarning={true}
+                                  onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                                  onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`, role.costRange || '')}
+                                  onBlur={() => handleTextBlur(`budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`)}
+                                  onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange`)}
+                                  onInput={handleTextChange}
+                                 >
+                                  {editingId === `budget-${factoryId}-personnelCosts-${categoryKey}-${index}-costRange` ? editText : (role.costRange || '')}
+                              </td>
+                            </tr>
+                          );
+                        })}
                         {categoryData.subtotal && (
                            <tr className="budget-subtotal">
                               <td></td>
@@ -211,8 +234,8 @@ const Budget = ({
                             </tr>
                          )}
                       </React.Fragment>
-                    )
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
 
@@ -225,36 +248,40 @@ const Budget = ({
                    </tr>
                  </thead>
                  <tbody>
-                  {Array.isArray(factoryData.operationalExpenses) && factoryData.operationalExpenses.map((item, index) => (
-                      <tr key={`${factoryId}-opEx-${index}`}>
-                         <td
-                           data-edit-id={`budget-${factoryId}-operationalExpenses-${index}-na-category`}
-                           className="editable-text"
-                            contentEditable={isUserAdmin}
-                            suppressContentEditableWarning={true}
-                            onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                            onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-operationalExpenses-${index}-na-category`, item.category || '')}
-                            onBlur={() => handleTextBlur(`budget-${factoryId}-operationalExpenses-${index}-na-category`)}
-                            onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-operationalExpenses-${index}-na-category`)}
-                            onInput={handleTextChange}
-                           >
-                            {editingId === `budget-${factoryId}-operationalExpenses-${index}-na-category` ? editText : (item.category || '')}
-                         </td>
-                          <td
-                           data-edit-id={`budget-${factoryId}-operationalExpenses-${index}-na-amount`}
-                           className="editable-text number-input"
-                            contentEditable={isUserAdmin}
-                            suppressContentEditableWarning={true}
-                            onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
-                            onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-operationalExpenses-${index}-na-amount`, (item.amount ?? '').toString())}
-                            onBlur={() => handleTextBlur(`budget-${factoryId}-operationalExpenses-${index}-na-amount`)}
-                            onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-operationalExpenses-${index}-na-amount`)}
-                            onInput={handleTextChange}
-                           >
-                            {editingId === `budget-${factoryId}-operationalExpenses-${index}-na-amount` ? editText : (item.amount ?? '')}
-                         </td>
-                      </tr>
-                  ))}
+                  {Array.isArray(factoryData.operationalExpenses) && factoryData.operationalExpenses.map((item, index) => {
+                      // Check item object
+                      if (!item) return null;
+                      return (
+                        <tr key={`${factoryId}-opEx-${index}`}>
+                           <td
+                             data-edit-id={`budget-${factoryId}-operationalExpenses-${index}-na-category`}
+                             className="editable-text"
+                              contentEditable={isUserAdmin}
+                              suppressContentEditableWarning={true}
+                              onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                              onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-operationalExpenses-${index}-na-category`, item.category || '')}
+                              onBlur={() => handleTextBlur(`budget-${factoryId}-operationalExpenses-${index}-na-category`)}
+                              onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-operationalExpenses-${index}-na-category`)}
+                              onInput={handleTextChange}
+                             >
+                              {editingId === `budget-${factoryId}-operationalExpenses-${index}-na-category` ? editText : (item.category || '')}
+                           </td>
+                            <td
+                             data-edit-id={`budget-${factoryId}-operationalExpenses-${index}-na-amount`}
+                             className="editable-text number-input"
+                              contentEditable={isUserAdmin}
+                              suppressContentEditableWarning={true}
+                              onMouseDown={(e) => {if (!isUserAdmin) e.preventDefault()}}
+                              onClick={() => isUserAdmin && handleTextClick(`budget-${factoryId}-operationalExpenses-${index}-na-amount`, (item.amount ?? '').toString())}
+                              onBlur={() => handleTextBlur(`budget-${factoryId}-operationalExpenses-${index}-na-amount`)}
+                              onKeyDown={(e) => handleKeyDown(e, `budget-${factoryId}-operationalExpenses-${index}-na-amount`)}
+                              onInput={handleTextChange}
+                             >
+                              {editingId === `budget-${factoryId}-operationalExpenses-${index}-na-amount` ? editText : (item.amount ?? '')}
+                           </td>
+                        </tr>
+                    );
+                  })}
                  </tbody>
                </table>
                
@@ -318,13 +345,17 @@ const Budget = ({
             </tr>
           </thead>
           <tbody>
-            {factorySummaries.map(summary => (
-              <tr key={`${summary.factoryId}-summary`}>
-                <td>{summary.factoryData.name || summary.factoryId}</td>
-                <td>${summary.totalBudget.toLocaleString()}</td>
-                <td>${summary.costPerUnit.toFixed(2)}</td>
-              </tr>
-            ))}
+            {factorySummaries.map(summary => {
+              // Add checks for summary and factoryData
+              if (!summary || !summary.factoryData) return null;
+              return (
+                <tr key={`${summary.factoryId}-summary`}>
+                  <td>{summary.factoryData.name || summary.factoryId}</td>
+                  <td>${summary.totalBudget.toLocaleString()}</td>
+                  <td>${summary.costPerUnit.toFixed(2)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

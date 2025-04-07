@@ -23,6 +23,11 @@ const OrgStructure = ({
 
   const [expandedRoles, setExpandedRoles] = useState({});
 
+  // Initial check for roles data
+  if (!roles || Object.keys(roles).length === 0) {
+    return <div className="org-structure-container">Loading organizational structure...</div>;
+  }
+
   const toggleRole = (roleId) => {
     setExpandedRoles(prev => ({ ...prev, [roleId]: !prev[roleId] }));
   };
@@ -55,62 +60,39 @@ const OrgStructure = ({
   );
 
   return (
-    <div className="hierarchy-column"> {/* Re-add the column wrapper */}
-      <div className="hierarchy-level director-level">
-        {renderRoleCard('director', roles.director)}
+    <div className="org-structure-container">
+      <h2>Organizational Structure</h2>
+      <div className="roles-list">
+        {Object.entries(roles).map(([roleKey, roleData]) => {
+          // Add check for roleData before rendering RoleCard
+          if (!roleData) return null;
+          return (
+            <RoleCard
+              key={roleKey}
+              roleKey={roleKey}
+              roleData={roleData}
+              personnel={personnel}
+              isUserAdmin={isUserAdmin}
+              expandedRoles={expandedRoles}
+              toggleRole={toggleRole}
+              handleDragOver={handleDragOver}
+              handleDropOnRole={handleDropOnRole}
+              handleDragEnter={handleDragEnter}
+              handleDragLeave={handleDragLeave}
+              handleDragStart={handleDragStart}
+              handleDragEnd={handleDragEnd}
+              handleTextClick={handleTextClick}
+              handleTextBlur={handleTextBlur}
+              handleKeyDown={handleKeyDown}
+              editText={editText}
+              editingId={editingId}
+              unassignPerson={unassignPerson}
+              handleTextChange={handleTextChange}
+              allRoles={allRoles}
+            />
+          );
+        })}
       </div>
-
-      {/* Connector (Optional Visual) */}
-      <div className="connector-line-vertical"></div>
-
-      <div className="hierarchy-level reports-level">
-        <div className="systems-lead-container">
-          {renderRoleCard('systemsLead', roles.systemsLead)}
-        </div>
-        <div className="managers-container">
-          {/* Render 3 Manager sections */}
-          {[1, 2, 3].map(managerIndex => {
-            // Create unique keys for managers if needed for state, using roleKey for drop target
-            const managerRoleKey = `qualityManager`; // Keep the role key consistent for drop logic
-            const uniqueManagerDisplayKey = `qualityManager-${managerIndex}`;
-
-            return (
-              <div key={uniqueManagerDisplayKey} className="manager-section">
-                {renderRoleCard(managerRoleKey, roles.qualityManager)} {/* Pass the drop target roleKey */} 
-
-                {/* Visually Nest Team Members Under Manager */}
-                {expandedRoles[managerRoleKey] && ( // Check expansion based on the shared roleKey
-                  <div className="team-members">
-                    {renderRoleCard('seniorSpecialist', roles.seniorSpecialist)}
-                    {renderRoleCard('qualitySpecialist', roles.qualitySpecialist)}
-                    {renderRoleCard('complaintsSpecialist', roles.complaintsSpecialist)}
-                    {renderRoleCard('associateSpecialist', roles.associateSpecialist)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Connector (Optional Visual) */}
-      {/* <div className="connector-line-vertical"></div> */}
-
-      <div className="hierarchy-level offshift-level">
-        {renderRoleCard('offshiftAssociate', roles.offshiftAssociate)}
-      </div>
-
-      {/* Add Lab Group Separately or integrate if structure is different */} 
-      <div className="hierarchy-level lab-group-level">
-        <h3>Functional Testing Group</h3>
-        {renderRoleCard('labManager', roles.labManager)}
-        <div className="lab-team">
-          {renderRoleCard('seniorLabTechnician', roles.seniorLabTechnician)}
-          {renderRoleCard('labTechnician', roles.labTechnician)}
-          {renderRoleCard('associateLabTechnician', roles.associateLabTechnician)}
-        </div>
-      </div>
-
     </div>
   );
 };

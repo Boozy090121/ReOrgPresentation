@@ -217,11 +217,16 @@ const arrayToCsv = (data) => {
 
 // Helper to flatten personnel data for CSV
 const formatPersonnelForCsv = (personnel, roles) => {
+  // Add check for personnel being an array
+  if (!Array.isArray(personnel)) return [];
   return personnel.map(p => ({
     id: p.id,
     name: p.name,
     assignedRoleKey: p.assignedRole || 'Unassigned',
-    assignedRoleTitle: p.assignedRole ? (roles[p.assignedRole]?.title || p.assignedRole) : 'Unassigned',
+    // Check if roles and the specific role exist
+    assignedRoleTitle: p.assignedRole && roles && roles[p.assignedRole]
+      ? roles[p.assignedRole].title
+      : (p.assignedRole || 'Unassigned'),
     // Add other fields like createdAt if needed
   }));
 };

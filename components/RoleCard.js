@@ -24,6 +24,11 @@ const RoleCard = ({
   allRoles
 }) => {
 
+  // Add check for essential roleData prop
+  if (!roleData) {
+    return <div className="role-card role-card-error">Error: Role data missing</div>;
+  }
+
   // Ensure personnel is an array before filtering
   const assigned = Array.isArray(personnel) ? personnel.filter(p => p.assignedRole === roleKey) : [];
   const cardStyle = {
@@ -35,17 +40,19 @@ const RoleCard = ({
 
   // Calculate headcount
   const headcount = assigned.length;
+  // Check expandedRoles before access
+  const isExpanded = expandedRoles && expandedRoles[roleKey];
 
   return (
     <div key={roleKey} className={`role-card role-card-${roleKey}`} style={cardStyle}>
       <div className="role-header" onClick={() => toggleRole(roleKey)} style={headerStyle}>
         <div className="role-header-title">
           {roleData.icon}
-          <h3>{roleData.title} ({headcount})</h3> {/* Display headcount */}
+          <h3>{roleData.title || 'Unknown Role'} ({headcount})</h3> {/* Display headcount */}
         </div>
-        <span>{expandedRoles[roleKey] ? <ChevronUp /> : <ChevronDown />}</span>
+        <span>{isExpanded ? <ChevronUp /> : <ChevronDown />}</span>
       </div>
-      {expandedRoles[roleKey] && (
+      {isExpanded && (
         <div
           className="role-content drop-zone"
           onDragOver={handleDragOver}
@@ -72,8 +79,8 @@ const RoleCard = ({
             <ul>{Array.isArray(roleData.responsibilities) && roleData.responsibilities.map((resp, index) => <li key={index}>{resp}</li>)}</ul>
           )}
           <div className="role-details">
-            <p><strong>Salary:</strong> {roleData.salary}</p>
-            <p><strong>Department:</strong> {roleData.department}</p>
+            <p><strong>Salary:</strong> {roleData.salary || 'N/A'}</p>
+            <p><strong>Department:</strong> {roleData.department || 'N/A'}</p>
           </div>
 
           {/* KPIs Section */}
@@ -97,13 +104,13 @@ const RoleCard = ({
           )}
 
           {/* Career Progression Section */}
-          {Array.isArray(roleData.nextRoles) && roleData.nextRoles.length > 0 && (
+          {Array.isArray(roleData.nextRoles) && roleData.nextRoles.length > 0 && allRoles && (
             <div className="progression-section">
               <h4>Possible Next Roles:</h4>
               <ul>
                 {roleData.nextRoles.map((nextRoleKey) => {
                   const nextRole = allRoles[nextRoleKey];
-                  return nextRole ? <li key={nextRoleKey}>{nextRole.title}</li> : null;
+                  return nextRole ? <li key={nextRoleKey}>{nextRole.title || nextRoleKey}</li> : null;
                 })}
               </ul>
             </div>
@@ -111,36 +118,39 @@ const RoleCard = ({
 
           <div className="assigned-personnel">
             <h4>Assigned Personnel:</h4>
-            {assigned.map(person => (
-              <div key={person.id} className="assigned-person draggable"
-                draggable={isUserAdmin}
-                onDragStart={(e) => handleDragStart(e, person)}
-                onDragEnd={handleDragEnd}
-              >
-                <div
-                  data-edit-id={`person-${person.id}`}
-                  className="editable-text personnel-name"
-                  contentEditable={isUserAdmin}
-                  suppressContentEditableWarning={true}
-                  onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
-                  onClick={() => isUserAdmin && handleTextClick(`person-${person.id}`, person.name)}
-                  onBlur={() => handleTextBlur(`person-${person.id}`)}
-                  onKeyDown={(e) => handleKeyDown(e, `person-${person.id}`)}
-                  onInput={handleTextChange}
+            {assigned.map(person => {
+              if (!person) return null;
+              return (
+                <div key={person.id} className="assigned-person draggable"
+                  draggable={isUserAdmin}
+                  onDragStart={(e) => handleDragStart(e, person)}
+                  onDragEnd={handleDragEnd}
                 >
-                  {editingId === `person-${person.id}` ? editText : person.name}
-                </div>
-                {isUserAdmin && (
-                  <button
-                    onClick={() => unassignPerson(person.id)} // Ensure unassignPerson prop is passed correctly
-                    className="unassign-button"
-                    title="Unassign Role"
+                  <div
+                    data-edit-id={`person-${person.id}`}
+                    className="editable-text personnel-name"
+                    contentEditable={isUserAdmin}
+                    suppressContentEditableWarning={true}
+                    onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
+                    onClick={() => isUserAdmin && handleTextClick(`person-${person.id}`, person.name)}
+                    onBlur={() => handleTextBlur(`person-${person.id}`)}
+                    onKeyDown={(e) => handleKeyDown(e, `person-${person.id}`)}
+                    onInput={handleTextChange}
                   >
-                    <XCircle size={14} />
-                  </button>
-                )}
-              </div>
-            ))}
+                    {editingId === `person-${person.id}` ? editText : person.name}
+                  </div>
+                  {isUserAdmin && (
+                    <button
+                      onClick={() => unassignPerson(person.id)} // Ensure unassignPerson prop is passed correctly
+                      className="unassign-button"
+                      title="Unassign Role"
+                    >
+                      <XCircle size={14} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
             {assigned.length === 0 && (
               <p className="empty-list-message">Drag available personnel here.</p>
             )}

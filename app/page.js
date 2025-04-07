@@ -34,26 +34,32 @@ export default function Dashboard() {
   // Data Loading Effect (depends on user authentication)
   useEffect(() => {
     // Only load data if auth is resolved and user is logged in
-    if (!loadingAuth && user && !initialDataLoaded) {
+    if (!loadingAuth && user) {
       const loadAllData = async () => {
         setError(null);
+        setInitialDataLoaded(false);
         console.log("Loading all data...");
         try {
+           // Check if db is available before loading
+           if (!db) {
+               throw new Error("Database connection not available.");
+           }
           // Refetch or load initial data here
-          // Example: Assuming load functions return data
            const [loadedPersonnel, loadedTimelineData, loadedBudget] = await Promise.all([
               loadPersonnel(),
               loadTimeline(), 
               loadBudget()    
           ]);
-          setPersonnel(loadedPersonnel);
-          setTimeline(loadedTimelineData);
-          setBudgetData(loadedBudget);
+          // Ensure data is set correctly, even if some loads returned defaults
+          setPersonnel(loadedPersonnel || []); 
+          setTimeline(loadedTimelineData || []);
+          setBudgetData(loadedBudget || {});
           setInitialDataLoaded(true);
           console.log("Data loading complete.");
         } catch (err) {
           console.error("Error loading data:", err);
-          setError("Failed to load application data. Please refresh.");
+          setError(`Failed to load application data: ${err.message}. Please try refreshing.`);
+          setInitialDataLoaded(false);
         }
       };
       loadAllData();
@@ -70,56 +76,89 @@ export default function Dashboard() {
   
   // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
   const loadPersonnel = useCallback(async () => {
+    // Check db at the start of the function
+    if (!db) {
+        console.error("Load Personnel: DB not available");
+        setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
+        return []; // Return empty array on DB error
+    }
     try {
         const querySnapshot = await getDocs(collection(db, 'personnel'));
         const loadedPersonnel = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setPersonnel(loadedPersonnel || []);
         console.log("Personnel loaded:", loadedPersonnel.length);
+        return loadedPersonnel; // Return the data
     } catch (err) {
         console.error("Error loading personnel:", err);
         setError(prev => prev ? prev + "\nFailed to load personnel." : "Failed to load personnel.");
+        return []; // Return empty array on fetch error
     }
   }, [setError]);
 
   const loadTimeline = useCallback(async () => {
+    if (!db) {
+        console.error("Load Timeline: DB not available");
+        setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
+        return []; // Return empty array
+    }
     try {
         const docRef = doc(db, 'timeline', 'current');
         const docSnap = await getDoc(docRef);
         let loadedTimeline = [];
         if (docSnap.exists()) {
-          loadedTimeline = docSnap.data().phases || [];
+          const data = docSnap.data();
+          loadedTimeline = data && Array.isArray(data.phases) ? data.phases : timelineInitialData;
         } else {
           loadedTimeline = timelineInitialData;
-          await setDoc(docRef, { phases: timelineInitialData });
-          console.log("Timeline document created.");
+          if (db) { // Check db again before writing
+              await setDoc(docRef, { phases: timelineInitialData });
+              console.log("Timeline document created.");
+          } else {
+              console.error("Timeline creation failed: DB not available");
+              setError(prev => prev ? prev + "\nFailed to create timeline." : "Failed to create timeline.");
+              // Still return initial data if creation fails?
+          }
         }
         console.log("Timeline loaded:", loadedTimeline.length, "phases");
         return loadedTimeline;
     } catch (err) {
         console.error("Error loading timeline:", err);
         setError(prev => prev ? prev + "\nFailed to load timeline." : "Failed to load timeline.");
-        return [];
+        return timelineInitialData; // Return initial data on error
     }
   }, [setError]);
 
   const loadBudget = useCallback(async () => {
+     if (!db) {
+        console.error("Load Budget: DB not available");
+        setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
+        return {}; // Return empty object
+     }
      try {
         const docRef = doc(db, 'budget', 'current');
         const docSnap = await getDoc(docRef);
+        let loadedBudget = {};
         if (docSnap.exists()) {
-          setBudgetData(docSnap.data().factories || {});
+          const data = docSnap.data();
+          loadedBudget = data && typeof data.factories === 'object' && data.factories !== null ? data.factories : initialBudgetData;
         } else {
-          const { initialBudgetData } = roles;
-          await setDoc(docRef, { factories: initialBudgetData });
-          setBudgetData(initialBudgetData);
-          console.log("Budget document created with initial factory data.");
+          loadedBudget = initialBudgetData;
+           if (db) { // Check db again before writing
+              await setDoc(docRef, { factories: initialBudgetData });
+              console.log("Budget document created with initial factory data.");
+           } else {
+               console.error("Budget creation failed: DB not available");
+               setError(prev => prev ? prev + "\nFailed to create budget." : "Failed to create budget.");
+               // Still return initial data if creation fails?
+           }
         }
-        console.log("Budget loaded:", Object.keys(budgetData).length, "factories");
+        console.log("Budget loaded:", Object.keys(loadedBudget).length, "factories");
+        return loadedBudget;
     } catch (err) {
         console.error("Error loading budget:", err);
         setError(prev => prev ? prev + "\nFailed to load budget." : "Failed to load budget.");
+        return initialBudgetData; // Return initial data on error
     }
-  }, []);
+  }, [setError]);
 
   const handleDragStart = (e, person) => {
     if (!isUserAdmin) {
@@ -146,42 +185,78 @@ export default function Dashboard() {
   };
 
   const handleDropOnRole = async (roleKey) => {
-    if (!draggedPerson || !isUserAdmin) return;
+    // Add db check and draggedPerson check
+    if (!draggedPerson || !isUserAdmin || !db) {
+        if (!db) setError("Database error. Cannot assign role.");
+        if (!draggedPerson) setError("Drag error. Please try again.");
+        return;
+    }
     setError(null);
     const personId = draggedPerson.id;
     const previousRole = draggedPerson.assignedRole;
 
-    if (previousRole === roleKey) return;
+    // Check if personId is valid before proceeding
+    if (!personId) {
+        setError("Cannot assign role: Invalid person data.");
+        console.error("handleDropOnRole: Missing personId in draggedPerson", draggedPerson);
+        return;
+    }
 
+    if (previousRole === roleKey) return; // No change needed
+
+    // Optimistic UI update
     setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: roleKey } : p));
 
     try {
+      // Ensure db is still available (might not be necessary due to initial check, but safe)
+      if (!db) throw new Error("Database connection lost during update.");
       await updateDoc(doc(db, 'personnel', personId), {
         assignedRole: roleKey,
         updatedAt: new Date()
       });
+      console.log(`Assigned ${personId} to ${roleKey}`);
     } catch (err) {
       setError('Failed to assign role. Reverting change.');
       console.error('Error updating assignment:', err);
+      // Revert optimistic update
       setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: previousRole } : p));
     }
   };
 
   const handleDropOnAvailable = async () => {
-    if (!draggedPerson || !draggedPerson.assignedRole || !isUserAdmin) return;
+     // Add db check and draggedPerson check
+    if (!draggedPerson || !draggedPerson.assignedRole || !isUserAdmin || !db) {
+        if (!db) setError("Database error. Cannot unassign role.");
+        if (!draggedPerson) setError("Drag error. Please try again.");
+        // Don't set error if just assignedRole is missing, means they are already available
+        return;
+    }
     setError(null);
     const personId = draggedPerson.id;
     const previousRole = draggedPerson.assignedRole;
+
+    // Check personId
+    if (!personId) {
+        setError("Cannot unassign role: Invalid person data.");
+         console.error("handleDropOnAvailable: Missing personId in draggedPerson", draggedPerson);
+        return;
+    }
+
+    // Optimistic UI update
     setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: null } : p));
 
     try {
+      // Ensure db is still available
+      if (!db) throw new Error("Database connection lost during update.");
       await updateDoc(doc(db, 'personnel', personId), {
         assignedRole: null,
         updatedAt: new Date()
       });
+       console.log(`Unassigned ${personId}`);
     } catch (err) {
       setError('Failed to unassign role. Reverting change.');
       console.error('Error updating assignment to null:', err);
+       // Revert optimistic update
       setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: previousRole } : p));
     }
   };
@@ -217,337 +292,589 @@ export default function Dashboard() {
   };
 
   const handleTextClick = (id, currentText) => {
-    if (!isUserAdmin) return;
+    if (!isUserAdmin || !id) return; // Add id check
     setEditingId(id);
-    setEditText(currentText);
+    // Ensure currentText is a string or number before setting
+    setEditText(typeof currentText === 'string' || typeof currentText === 'number' ? String(currentText) : '');
+    // Request animation frame for focus
     requestAnimationFrame(() => {
-        const element = document.querySelector(`[data-edit-id="${id}"]`);
-        if (element) {
-            element.focus();
+        // Use try-catch for querySelector just in case ID format is bad
+        try {
+            const element = document.querySelector(`[data-edit-id="${id}"]`);
+            if (element) {
+                element.focus();
+            } else {
+                 console.warn(`Element with data-edit-id="${id}" not found for focus.`);
+            }
+        } catch (e) {
+             console.error(`Error selecting element for focus with id="${id}":`, e);
         }
     });
   };
 
   const handleTextChange = (e) => {
-    setEditText(e.target.textContent);
+    // Check if e and e.target exist
+    if (e && e.target) {
+      // Use textContent, ensure it's treated as a string
+      setEditText(e.target.textContent !== null && e.target.textContent !== undefined ? String(e.target.textContent) : '');
+    } else {
+        console.warn("handleTextChange called without valid event target.");
+    }
   };
 
   const handleTextBlur = async (id) => {
-    if (!isUserAdmin || editingId !== id) return;
-
-    const originalText = getOriginalText(id);
-
-    if (editText.trim() === originalText.trim()) {
-        setEditingId(null);
-        setEditText('');
-        return;
+    // Add check for isUserAdmin and if the blurred element matches the one being edited
+    if (!isUserAdmin || editingId !== id) {
+         // If editingId is null but id is passed, maybe log a warning? 
+         // This can happen if blur occurs programmatically after reset.
+         // console.log(`handleTextBlur called for ${id} while not editing or not admin.`);
+         return;
     }
 
-    setError(null);
+    const originalText = getOriginalText(id);
+    // Ensure editText and originalText are strings for comparison
+    const trimmedEditText = typeof editText === 'string' ? editText.trim() : '';
+    const trimmedOriginalText = typeof originalText === 'string' ? originalText.trim() : '';
+    
+    // Reset editing state *before* async operations
+    const currentlyEditingId = editingId; // Capture id before resetting state
     setEditingId(null);
+    setEditText(''); 
 
-    updateLocalState(id, editText);
+    // Check if text actually changed 
+    if (trimmedEditText === trimmedOriginalText) {
+        console.log("No change detected for:", currentlyEditingId);
+        // Ensure the visual element reverts if edit text was different only by whitespace
+         requestAnimationFrame(() => {
+             try {
+                 const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
+                 if (element) element.textContent = originalText; 
+             } catch (e) { console.error("Error reverting text content:", e); });
+        return; // No *meaningful* change, no need to save
+    }
 
-    try {
-        const success = await updateFirestore(id, editText);
-        if (!success) {
-            throw new Error("Update failed, reverting.");
-        }
-        console.log("Saved:", id, "->", editText);
-    } catch (err) {
-        console.error('Error updating document:', err);
-        setError(`Failed to save changes for ${id}. Reverting.`);
-        updateLocalState(id, originalText);
-    } finally {
-        setEditText('');
+    setError(null); // Clear previous errors before attempting save
+
+    // Optimistically update local state first using the robust function
+    updateLocalState(currentlyEditingId, trimmedEditText); // Use trimmed value for consistency
+
+    // Then, attempt to update Firestore using the robust function
+    const success = await updateFirestoreData(currentlyEditingId, trimmedEditText); 
+
+    if (!success) {
+        // Revert local state if Firestore update failed
+        console.warn("Firestore update failed, reverting local state for:", currentlyEditingId);
+        // Use originalText (untrimmed) for revert to be precise
+        updateLocalState(currentlyEditingId, originalText); 
+        // Visually revert the field as well
+         requestAnimationFrame(() => {
+             try {
+                 const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
+                 if (element) element.textContent = originalText; 
+             } catch (e) { console.error("Error reverting text content:", e); });
+        // Error state should have been set within updateFirestoreData
+    } else {
+        console.log("Successfully saved changes for:", currentlyEditingId);
+        // Optionally confirm save by ensuring visual matches saved state (trimmed)
+         requestAnimationFrame(() => {
+             try {
+                 const element = document.querySelector(`[data-edit-id="${currentlyEditingId}"]`);
+                 if (element) element.textContent = trimmedEditText; 
+             } catch (e) { console.error("Error confirming text content:", e); });
     }
   };
 
   const handleKeyDown = (e, id) => {
-    if (editingId === id) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleTextBlur(id);
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        const originalText = getOriginalText(id);
-        e.target.textContent = originalText;
-        setEditingId(null);
-        setEditText('');
+    // Check if e exists and has key property
+    if (!e || !e.key || !id) return;
+
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Prevent newline in contentEditable
+      // Ensure the target element exists before blurring
+      if (e.target && typeof e.target.blur === 'function') {
+        e.target.blur(); // Trigger blur, which calls handleTextBlur
+      } else {
+          handleTextBlur(id); // Fallback if target isn't available/blurrable
       }
+    } else if (e.key === 'Escape') {
+      // Store original text before resetting state
+      const originalText = getOriginalText(id); 
+      setEditingId(null); // Cancel editing on Escape
+      setEditText('');
+      // Revert visual change immediately using original text
+       requestAnimationFrame(() => {
+           try {
+                const element = document.querySelector(`[data-edit-id="${id}"]`);
+                if (element) element.textContent = originalText; 
+           } catch (err) { console.error("Error reverting text on Escape:", err); });
     }
   };
 
   const getOriginalText = useCallback((id) => {
-    if (!id) return '';
+    // Basic validation of id
+    if (!id || typeof id !== 'string') {
+        console.warn("getOriginalText called with invalid id:", id);
+        return '';
+    }
+    
     const parts = id.split('-');
+    if (parts.length < 3) { // Minimum parts needed (e.g., type-id-field)
+         console.warn("getOriginalText: Invalid ID format", id);
+         return '';
+    }
     const type = parts[0];
 
     try {
-        if (type === 'person') {
-            const person = personnel.find(p => p.id === parts[1]);
-            return person ? person.name : '';
-        } else if (type === 'timeline') {
-            const phaseIndex = parseInt(parts[1]);
-            const field = parts[2];
-            if (!timeline || !timeline[phaseIndex]) return '';
-            if (field === 'phase') return timeline[phaseIndex].phase;
-            if (field === 'timeframe') return timeline[phaseIndex].timeframe;
+        if (type === 'timeline') {
+            if (parts.length < 3) return ''; // Need at least type-index-field
+            const phaseIndex = parseInt(parts[1], 10);
+            const field = parts[2]; // 'phase' or 'timeframe' or 'activity'
+            
+            // Check timeline array, phaseIndex validity, and field name
+            if (!Array.isArray(timeline) || isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= timeline.length || !field) {
+                console.warn(`getOriginalText(timeline): Invalid index or data for id ${id}`);
+                return '';
+            }
+            const phase = timeline[phaseIndex];
+            // Check if phase object exists
+            if (!phase) {
+                 console.warn(`getOriginalText(timeline): Phase at index ${phaseIndex} is missing for id ${id}`);
+                 return '';
+            }
+
+            if (field === 'phase') return String(phase.phase ?? '');
+            if (field === 'timeframe') return String(phase.timeframe ?? '');
             if (field === 'activity') {
-                const activityIndex = parseInt(parts[3]);
-                return timeline[phaseIndex].activities?.[activityIndex] || '';
+                if (parts.length < 4) return ''; // Need type-index-activity-index
+                const activityIndex = parseInt(parts[3], 10);
+                // Check activities array and activityIndex validity
+                if (!Array.isArray(phase.activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= phase.activities.length) {
+                     console.warn(`getOriginalText(timeline): Invalid activity index or data for id ${id}`);
+                     return '';
+                }
+                // Return activity, ensure it's a string
+                return String(phase.activities[activityIndex] ?? '');
             }
         } else if (type === 'budget') {
+            if (parts.length < 3) return ''; // Need type-factoryId-field
             const factoryId = parts[1];
-            const costType = parts[2];
-            const category = parts[3];
-            const roleIndex = parseInt(parts[4]);
-            const field = parts[5];
+            const categoryKey = parts[2]; // 'personnelCosts' or 'operationalExpenses' or 'productionVolume' or 'factoryName'
             
-            if (!budgetData || !budgetData[factoryId]) return '';
-
-            if (costType === 'personnelCosts') {
-                 if (!budgetData[factoryId].personnelCosts || !budgetData[factoryId].personnelCosts[category] || !budgetData[factoryId].personnelCosts[category].roles?.[roleIndex]) return '';
-                 if (field === 'title') return budgetData[factoryId].personnelCosts[category].roles[roleIndex].title;
-                 if (field === 'count') return (budgetData[factoryId].personnelCosts[category].roles[roleIndex].count ?? '').toString();
-                 if (field === 'costRange') return budgetData[factoryId].personnelCosts[category].roles[roleIndex].costRange;
-            } else if (costType === 'operationalExpenses') {
-                 const opExIndex = parseInt(category);
-                 if (!budgetData[factoryId].operationalExpenses?.[opExIndex]) return '';
-                 if (field === 'category') return budgetData[factoryId].operationalExpenses[opExIndex].category;
-                 if (field === 'amount') return (budgetData[factoryId].operationalExpenses[opExIndex].amount ?? '').toString();
-            } else if (costType === 'productionVolume') {
-                 return (budgetData[factoryId].productionVolume ?? '').toString();
+            // Check budgetData, factoryId validity
+            if (!budgetData || typeof budgetData !== 'object' || !factoryId || !budgetData[factoryId]) {
+                console.warn(`getOriginalText(budget): Invalid factoryId or budgetData for id ${id}`);
+                return '';
             }
+            const factory = budgetData[factoryId];
+            if (!factory) return ''; // Should be caught above, but safe check
+
+            if (categoryKey === 'factoryName') return String(factory.name ?? '');
+            if (categoryKey === 'productionVolume') return String(factory.productionVolume ?? '');
+
+            if (categoryKey === 'personnelCosts') {
+                 if (parts.length < 6) return ''; // type-factory-personnelCosts-category-index-field
+                 const personnelCategoryKey = parts[3];
+                 const roleIndex = parseInt(parts[4], 10);
+                 const roleField = parts[5];
+
+                 // Check personnelCosts object, specific category, roles array, roleIndex validity, roleField name
+                 if (!factory.personnelCosts || typeof factory.personnelCosts !== 'object' || 
+                     !factory.personnelCosts[personnelCategoryKey] || 
+                     !Array.isArray(factory.personnelCosts[personnelCategoryKey].roles) ||
+                     isNaN(roleIndex) || roleIndex < 0 || roleIndex >= factory.personnelCosts[personnelCategoryKey].roles.length ||
+                     !roleField) {
+                         console.warn(`getOriginalText(budget): Invalid personnel cost path for id ${id}`);
+                         return '';
+                     }
+                 
+                 const role = factory.personnelCosts[personnelCategoryKey].roles[roleIndex];
+                 // Check role object exists
+                 if (!role) {
+                      console.warn(`getOriginalText(budget): Role at index ${roleIndex} missing for id ${id}`);
+                      return '';
+                 }
+                 // Access role field safely, convert null/undefined to empty string
+                 return String(role[roleField] ?? ''); 
+
+            } else if (categoryKey === 'operationalExpenses') {
+                 if (parts.length < 5) return ''; // type-factory-operationalExpenses-index-field
+                 const opExIndex = parseInt(parts[3], 10);
+                 const opExField = parts[4];
+                  // Check operationalExpenses array, opExIndex validity, opExField name
+                  if (!Array.isArray(factory.operationalExpenses) || 
+                      isNaN(opExIndex) || opExIndex < 0 || opExIndex >= factory.operationalExpenses.length || 
+                      !opExField) {
+                          console.warn(`getOriginalText(budget): Invalid operational expense path for id ${id}`);
+                          return '';
+                      }
+                  const item = factory.operationalExpenses[opExIndex];
+                  // Check item object exists
+                  if (!item) {
+                      console.warn(`getOriginalText(budget): OpEx item at index ${opExIndex} missing for id ${id}`);
+                      return '';
+                  }
+                  // Access item field safely, convert null/undefined to empty string
+                  return String(item[opExField] ?? '');
+            }
+        } else if (type === 'personnel') {
+            if (parts.length < 3) return ''; // type-personId-field
+            const personId = parts[1];
+            const field = parts[2];
+            // Check personnel array and field name
+            if (!Array.isArray(personnel) || !personId || !field) {
+                 console.warn(`getOriginalText(personnel): Invalid id format or data for id ${id}`);
+                 return '';
+            }
+            const person = personnel.find(p => p && p.id === personId); // Add check for p itself
+            // Check person object was found
+            if (!person) {
+                 console.warn(`getOriginalText(personnel): Person with id ${personId} not found.`);
+                 return '';
+            }
+            // Access field safely, convert null/undefined to empty string
+            return String(person[field] ?? '');
         }
-    } catch (err) {
-        console.error("Error in getOriginalText:", err, "ID:", id);
+    } catch (error) {
+        // Catch potential errors during parsing or access
+        console.error("Error in getOriginalText for id:", id, error);
+        return '';
     }
+    
+    // Default return if id format or type not recognized
+    console.warn("getOriginalText: Unrecognized ID format or type:", id);
     return '';
   }, [personnel, timeline, budgetData]);
 
-  const updateLocalState = useCallback((id, newText) => {
-    if (!id) return;
+  const updateLocalState = useCallback((id, value) => {
+    // Basic validation of id
+    if (!id || typeof id !== 'string') {
+        console.warn("updateLocalState called with invalid id:", id);
+        return;
+    }
+
     const parts = id.split('-');
+    if (parts.length < 3) {
+         console.warn("updateLocalState: Invalid ID format", id);
+         return;
+    }
     const type = parts[0];
 
     try {
-        if (type === 'person') {
-            setPersonnel(prev => prev.map(p => p.id === parts[1] ? { ...p, name: newText } : p));
-        } else if (type === 'timeline') {
-            const phaseIndex = parseInt(parts[1]);
-            const field = parts[2];
+        if (type === 'timeline') {
             setTimeline(prev => {
-                const updated = [...prev];
-                if (!updated[phaseIndex]) return prev;
-                if (field === 'phase') updated[phaseIndex].phase = newText;
-                else if (field === 'timeframe') updated[phaseIndex].timeframe = newText;
+                // Add check for prev being an array
+                if (!Array.isArray(prev)) return prev;
+                const newTimeline = JSON.parse(JSON.stringify(prev)); // Deep copy
+                if (parts.length < 3) return prev;
+                const phaseIndex = parseInt(parts[1], 10);
+                const field = parts[2];
+                
+                // Validate index and field
+                if (isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= newTimeline.length || !field || !newTimeline[phaseIndex]) return prev;
+
+                if (field === 'phase') newTimeline[phaseIndex].phase = value;
+                else if (field === 'timeframe') newTimeline[phaseIndex].timeframe = value;
                 else if (field === 'activity') {
-                    const activityIndex = parseInt(parts[3]);
-                    if (updated[phaseIndex].activities) {
-                        updated[phaseIndex].activities[activityIndex] = newText;
-                    }
+                    if (parts.length < 4) return prev;
+                    const activityIndex = parseInt(parts[3], 10);
+                    // Validate activities array and index
+                    if (!Array.isArray(newTimeline[phaseIndex].activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= newTimeline[phaseIndex].activities.length) return prev;
+                    newTimeline[phaseIndex].activities[activityIndex] = value;
                 }
-                return updated;
+                return newTimeline;
             });
         } else if (type === 'budget') {
-            const factoryId = parts[1];
-            const costType = parts[2];
-            const categoryOrIndex = parts[3];
-            const roleIndexOrNA = parseInt(parts[4]);
-            const field = parts[5];
-
             setBudgetData(prev => {
-                const updated = JSON.parse(JSON.stringify(prev));
-                if (!updated || !updated[factoryId]) return prev;
+                // Add check for prev being an object
+                if (!prev || typeof prev !== 'object') return prev;
+                const newBudgetData = JSON.parse(JSON.stringify(prev));
+                if (parts.length < 3) return prev;
+                const factoryId = parts[1];
+                const categoryKey = parts[2];
+                
+                // Validate factoryId and existence
+                if (!factoryId || !newBudgetData[factoryId]) return prev;
 
-                if (costType === 'personnelCosts') {
-                    const category = categoryOrIndex;
-                    const roleIndex = roleIndexOrNA;
-                    if (!updated[factoryId].personnelCosts?.[category]?.roles?.[roleIndex]) return prev;
-
-                    if (field === 'title') updated[factoryId].personnelCosts[category].roles[roleIndex].title = newText;
-                    else if (field === 'count') updated[factoryId].personnelCosts[category].roles[roleIndex].count = parseInt(newText) || 0;
-                    else if (field === 'costRange') updated[factoryId].personnelCosts[category].roles[roleIndex].costRange = newText;
+                if (categoryKey === 'factoryName') {
+                    newBudgetData[factoryId].name = value;
+                } else if (categoryKey === 'productionVolume') {
+                    // Attempt to convert to number, default to 0 if invalid
+                    const numValue = Number(value);
+                    newBudgetData[factoryId].productionVolume = isNaN(numValue) ? 0 : numValue;
+                } else if (categoryKey === 'personnelCosts') {
+                     if (parts.length < 6) return prev;
+                    const personnelCategoryKey = parts[3];
+                    const roleIndex = parseInt(parts[4], 10);
+                    const roleField = parts[5];
+                    // Validate path
+                    if (!newBudgetData[factoryId].personnelCosts || typeof newBudgetData[factoryId].personnelCosts !== 'object' || 
+                        !newBudgetData[factoryId].personnelCosts[personnelCategoryKey] || 
+                        !Array.isArray(newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles) ||
+                        isNaN(roleIndex) || roleIndex < 0 || roleIndex >= newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles.length ||
+                        !roleField || !newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex]) return prev;
                     
-                } else if (costType === 'operationalExpenses') {
-                    const opExIndex = parseInt(categoryOrIndex);
-                    if (!updated[factoryId].operationalExpenses?.[opExIndex]) return prev;
+                    const currentRole = newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex];
+                    // Handle numeric fields like 'count'
+                    if (roleField === 'count') {
+                         const numValue = Number(value);
+                         currentRole[roleField] = isNaN(numValue) ? 0 : numValue;
+                    } else {
+                         currentRole[roleField] = value;
+                    }
 
-                    if (field === 'category') updated[factoryId].operationalExpenses[opExIndex].category = newText;
-                    else if (field === 'amount') updated[factoryId].operationalExpenses[opExIndex].amount = parseInt(newText) || 0;
-                
-                } else if (costType === 'productionVolume') {
-                    updated[factoryId].productionVolume = parseInt(newText) || 0;
+                } else if (categoryKey === 'operationalExpenses') {
+                    if (parts.length < 5) return prev;
+                    const opExIndex = parseInt(parts[3], 10);
+                    const opExField = parts[4];
+                    // Validate path
+                    if (!Array.isArray(newBudgetData[factoryId].operationalExpenses) || 
+                        isNaN(opExIndex) || opExIndex < 0 || opExIndex >= newBudgetData[factoryId].operationalExpenses.length || 
+                        !opExField || !newBudgetData[factoryId].operationalExpenses[opExIndex]) return prev;
+
+                    const currentItem = newBudgetData[factoryId].operationalExpenses[opExIndex];
+                    // Handle numeric fields like 'amount'
+                    if (opExField === 'amount') {
+                       const numValue = Number(value);
+                       currentItem[opExField] = isNaN(numValue) ? 0 : numValue;
+                    } else {
+                       currentItem[opExField] = value;
+                    }
                 }
+                return newBudgetData;
+            });
+        } else if (type === 'personnel') {
+            setPersonnel(prev => {
+                // Check prev is array
+                 if (!Array.isArray(prev)) return prev;
+                if (parts.length < 3) return prev;
+                const personId = parts[1];
+                const field = parts[2];
+                if (!personId || !field) return prev; // No id or field specified
                 
-                return updated;
+                const newPersonnel = prev.map(p => {
+                    // Check p exists and has id
+                    if (p && p.id === personId) {
+                        return { ...p, [field]: value };
+                    }
+                    return p;
+                });
+                return newPersonnel;
             });
         }
-    } catch (err) {
-        console.error("Error in updateLocalState:", err, "ID:", id);
+    } catch (error) {
+         console.error("Error in updateLocalState for id:", id, error);
+         setError("Error updating data locally. Changes might not be saved.");
     }
   }, []);
 
-  const updateFirestore = useCallback(async (id, newText) => {
-    if (!id) return false;
+  // Helper to update Firestore
+  const updateFirestoreData = useCallback(async (id, value) => {
+    // Add db check and id validation
+    if (!id || typeof id !== 'string' || !db) {
+        if (!db) setError("Database error. Cannot save changes.");
+        else setError("Invalid data reference. Cannot save changes.");
+        return false; // Indicate failure
+    }
+
     const parts = id.split('-');
+    if (parts.length < 3) {
+        setError("Invalid data structure for saving.");
+        return false;
+    }
     const type = parts[0];
 
     try {
-        if (type === 'person') {
-            const personId = parts[1];
-            await updateDoc(doc(db, 'personnel', personId), { name: newText, updatedAt: new Date() });
-        } else if (type === 'timeline') {
-            let timelineToSave;
-            setTimeline(currentTimeline => {
-                timelineToSave = currentTimeline;
-                return currentTimeline;
-            });
-            if (timelineToSave) {
-                 await updateDoc(doc(db, 'timeline', 'current'), { phases: timelineToSave });
-            } else { throw new Error("Timeline state not available for saving"); }
-
+        if (type === 'timeline') {
+            // Timeline saves are now handled by saveTimelineChanges for simplicity and atomicity
+            console.log("Triggering saveTimelineChanges due to timeline item edit.");
+            await saveTimelineChanges(); 
+            return true; // Assume success if saveTimelineChanges doesn't throw
         } else if (type === 'budget') {
-            let budgetToSave;
-            setBudgetData(currentSummary => {
-                budgetToSave = currentSummary;
-                return currentSummary;
-            });
-             if (budgetToSave) {
-                await updateDoc(doc(db, 'budget', 'current'), { factories: budgetToSave });
-            } else { throw new Error("Budget state not available for saving"); }
-        } else {
-            console.warn("Unknown type for Firestore update:", type);
-            return false;
+            // Budget saves are now handled by saveBudgetChanges
+            console.log("Triggering saveBudgetChanges due to budget item edit.");
+            await saveBudgetChanges();
+            return true; // Assume success if saveBudgetChanges doesn't throw
+        } else if (type === 'personnel') {
+            const personId = parts[1];
+            const field = parts[2];
+            if (!personId || !field) {
+                 setError("Invalid personnel data for saving.");
+                 return false; 
+            }
+            
+            // Prepare update data, converting known numeric fields if necessary
+            let updateValue = value;
+            if (field === 'experience') { // Example numeric field
+                const numValue = Number(value);
+                updateValue = isNaN(numValue) ? 0 : numValue; // Default to 0 if not a number
+            }
+            
+            const updateData = { [field]: updateValue, updatedAt: new Date() };
+            await updateDoc(doc(db, 'personnel', personId), updateData);
+            console.log(`Updated personnel ${personId} field ${field}`);
+            return true; // Indicate success
         }
-        return true;
-    } catch (err) {
-        console.error("Firestore update failed for ID:", id, err);
-        return false;
+         console.warn("updateFirestoreData: Unrecognized type:", type);
+         setError(`Cannot save changes for unknown data type: ${type}`);
+         return false; // Indicate failure for unknown type
+    } catch (error) {
+        console.error(`Error updating Firestore for id ${id}:`, error);
+        setError(`Failed to save changes for ${id}. Please check connection and try again.`);
+        return false; // Indicate failure
     }
-  }, [db]);
+  }, [db, saveTimelineChanges, saveBudgetChanges, setError]);
 
-  if (loadingAuth) {
-    return (
-      <div className="dashboard-container loading-overlay">
-        <div className="loading-spinner">Authenticating...</div>
-      </div>
-    );
-  }
+  // Render helpers or main render logic
+  const renderContent = () => {
+    // Handle Auth Loading State FIRST
+    if (loadingAuth) {
+      return <div className="loading-container">Authenticating... Please wait.</div>;
+    }
+    
+    // Handle No User State (After Auth Check)
+    if (!user) {
+      return <AuthSection />; // Show login/signup
+    }
+    
+    // Handle Data Loading Error State (If user is logged in but data failed)
+    // Check for error *before* checking initialDataLoaded
+    if (error) {
+        // Display error prominently
+        return (
+          <div className="error-container">
+            <AlertCircle size={48} color="#dc3545" />
+            <h2>Application Error</h2>
+            <p>{error}</p>
+            {/* Simple refresh button */} 
+            <button onClick={() => window.location.reload()} className="button-primary">
+               Refresh Page
+            </button>
+             {/* Optionally add a sign-out button here too */} 
+             <button onClick={signOut} className="button-secondary" style={{marginLeft: '10px'}}>
+                Sign Out
+             </button>
+          </div>
+        );
+    }
+    
+    // Handle Initial Data Loading State (after auth is resolved and no error)
+    if (!initialDataLoaded) {
+        // Added check for !error here to prevent showing loading when error occurred
+        return <div className="loading-container">Loading application data...</div>;
+    }
+    
+    // If authenticated, no error, and data loaded, render tabs
+    switch (activeTab) {
+       case 'structure':
+         // Add checks here specific to this tab's data needs
+         return (roles && Array.isArray(personnel)) ? (
+           <div className="tab-content structure-tab">
+             <OrgStructure
+                        roles={roles} // Using imported static roles for now
+                        personnel={personnel}
+                        isUserAdmin={isUserAdmin}
+                        handleDragOver={handleDragOver}
+                        handleDropOnRole={handleDropOnRole}
+                        handleDragEnter={handleDragEnter}
+                        handleDragLeave={handleDragLeave}
+                        handleDragStart={handleDragStart}
+                        handleDragEnd={handleDragEnd}
+                        handleTextClick={handleTextClick}
+                        handleTextBlur={handleTextBlur}
+                        handleKeyDown={handleKeyDown}
+                        editText={editText}
+                        editingId={editingId}
+                        unassignPerson={handleDropOnAvailable} 
+                        handleTextChange={handleTextChange}
+                        allRoles={roles}
+             />
+             <AvailablePersonnel
+                        personnel={personnel}
+                        isUserAdmin={isUserAdmin}
+                        handleDragStart={handleDragStart}
+                        handleDragEnd={handleDragEnd}
+                        handleDragOver={handleDragOver}
+                        handleDropOnAvailable={handleDropOnAvailable}
+                        handleDragEnterAvailable={handleDragEnterAvailable}
+                        handleDragLeaveAvailable={handleDragLeaveAvailable}
+                        addPersonnel={addPersonnel}
+                        deletePersonnel={deletePersonnel}
+                        handleTextClick={handleTextClick}
+                        handleTextBlur={handleTextBlur}
+                        handleKeyDown={handleKeyDown}
+                        editText={editText}
+                        editingId={editingId}
+                        handleTextChange={handleTextChange}
+             />
+          </div>
+         ) : <div className="loading-container">Loading structure components...</div>;
+       case 'timeline':
+         // Check timeline data before rendering
+         return Array.isArray(timeline) ? (
+           <Timeline 
+              timeline={timeline} 
+              isUserAdmin={isUserAdmin}
+              handleTextClick={handleTextClick}
+              handleTextBlur={handleTextBlur}
+              handleKeyDown={handleKeyDown}
+              editText={editText}
+              editingId={editingId}
+              handleTextChange={handleTextChange}
+              saveTimelineChanges={saveTimelineChanges}
+           />
+         ) : <div className="loading-container">Loading timeline...</div>;
+       case 'budget':
+          // Check budgetData before rendering
+          // Ensure it's an object, potentially check if it has keys?
+          return (budgetData && typeof budgetData === 'object') ? (
+             <Budget 
+                 budgetData={budgetData} 
+                 isUserAdmin={isUserAdmin}
+                 handleTextClick={handleTextClick}
+                 handleTextBlur={handleTextBlur}
+                 handleKeyDown={handleKeyDown}
+                 editText={editText}
+                 editingId={editingId}
+                 handleTextChange={handleTextChange}
+                 saveBudgetChanges={saveBudgetChanges}
+              />
+          ) : <div className="loading-container">Loading budget...</div>;
+        case 'analysis':
+          // Check roles and personnel for workload analysis
+          return (roles && Array.isArray(personnel)) ? (
+             <WorkloadAnalysis 
+                 roles={roles} // Using imported static roles
+                 personnel={personnel} 
+                 isUserAdmin={isUserAdmin}
+             />
+          ) : <div className="loading-container">Loading analysis data...</div>;
+       default:
+         return <div className="tab-content">Select a tab</div>; // Default content
+    }
+  };
 
   return (
     <div className="dashboard-container">
       <Head>
-        <title>PCI Quality Organization</title>
-        <meta name="description" content="PCI Quality Organization Dashboard" />
+        <title>ReOrg Dashboard</title>
+        <meta name="description" content="Organizational Restructuring Dashboard" />
+        <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      {error && (
-        <div className="error-banner">
-          <AlertCircle size={18} />
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="close-error-button">
-            <XCircle size={16} />
-          </button>
-        </div>
+      {/* Render AuthSection permanently at the top/header if user is logged in */}
+      {/* Check user *before* rendering AuthSection with minimal prop */}
+      {user && <AuthSection minimal={true} signOutAction={signOut} userEmail={user.email || 'User'}/>}
+      
+      {/* Only show tabs if user is logged in */}
+      {user && (
+          <nav className="sidebar">
+            {/* ... sidebar content ... */}
+          </nav>
       )}
 
-      <div className="admin-controls">
-        <h1>PCI Quality Organization</h1>
-        <AuthSection user={user} isUserAdmin={isUserAdmin} handleLogout={signOut} />
-      </div>
-
-      {user ? (
-        <>
-          <div className="tab-navigation">
-            <button className={`tab-button ${activeTab === 'structure' ? 'active' : ''}`} onClick={() => setActiveTab('structure')}>Organization Structure</button>
-            <button className={`tab-button ${activeTab === 'timeline' ? 'active' : ''}`} onClick={() => setActiveTab('timeline')}>Implementation Timeline</button>
-            <button className={`tab-button ${activeTab === 'budget' ? 'active' : ''}`} onClick={() => setActiveTab('budget')}>Budget Analysis</button>
-            <button className={`tab-button ${activeTab === 'workload' ? 'active' : ''}`} onClick={() => setActiveTab('workload')}>Workload Analysis</button>
-          </div>
-
-          <div className="tab-content">
-            {activeTab === 'structure' && (
-              <div className="structure-tab-content">
-                <OrgStructure
-                  roles={roles}
-                  personnel={personnel}
-                  isUserAdmin={isUserAdmin}
-                  allRoles={roles}
-                  handleDragOver={handleDragOver}
-                  handleDropOnRole={handleDropOnRole}
-                  handleDragEnter={handleDragEnter}
-                  handleDragLeave={handleDragLeave}
-                  handleDragStart={handleDragStart}
-                  handleDragEnd={handleDragEnd}
-                  handleTextClick={handleTextClick}
-                  handleTextBlur={handleTextBlur}
-                  handleKeyDown={handleKeyDown}
-                  editText={editText}
-                  editingId={editingId}
-                  setError={setError}
-                  handleTextChange={handleTextChange}
-                />
-                <AvailablePersonnel
-                  personnel={personnel}
-                  setPersonnel={setPersonnel}
-                  isUserAdmin={isUserAdmin}
-                  roles={roles}
-                  setError={setError}
-                  handleDragStart={handleDragStart}
-                  handleDragEnd={handleDragEnd}
-                  handleDragOver={handleDragOver}
-                  handleDropOnAvailable={handleDropOnAvailable}
-                  handleDragEnterAvailable={handleDragEnterAvailable}
-                  handleDragLeaveAvailable={handleDragLeaveAvailable}
-                />
-              </div>
-            )}
-
-            {activeTab === 'timeline' && (
-              <Timeline
-                timeline={timeline}
-                setTimeline={setTimeline}
-                isUserAdmin={isUserAdmin}
-                editingId={editingId}
-                editText={editText}
-                handleTextClick={handleTextClick}
-                handleTextBlur={handleTextBlur}
-                handleKeyDown={handleKeyDown}
-                handleTextChange={handleTextChange}
-              />
-            )}
-
-            {activeTab === 'budget' && (
-              <Budget
-                budgetData={budgetData}
-                isUserAdmin={isUserAdmin}
-                editingId={editingId}
-                editText={editText}
-                handleTextClick={handleTextClick}
-                handleTextBlur={handleTextBlur}
-                handleKeyDown={handleKeyDown}
-                handleTextChange={handleTextChange}
-              />
-            )}
-
-            {activeTab === 'workload' && (
-              <WorkloadAnalysis 
-                personnel={personnel} 
-                roles={roles}
-              />
-            )}
-
-          </div>
-        </>
-      ) : (
-        <div className="login-prompt">
-          <h2>Welcome to the PCI Quality Organization Dashboard</h2>
-          <p>Please log in as an admin to view and manage the organization.</p>
-          <AuthSection user={user} isUserAdmin={isUserAdmin} handleLogout={signOut} />
-        </div>
-      )}
+      <main className={`main-content ${!user ? 'logged-out' : ''}`}>
+         {renderContent()} { /* Call the function to render content */}
+      </main>
     </div>
   );
 }
