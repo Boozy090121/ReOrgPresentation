@@ -899,25 +899,28 @@ export default function Dashboard() {
          // Add checks here specific to this tab's data needs
          return (roles && Array.isArray(personnel)) ? (
            <div className="tab-content structure-tab">
-             <OrgStructure
-                        roles={roles} // Using imported static roles for now
-                        personnel={personnel}
-                        isUserAdmin={isUserAdmin}
-                        handleDragOver={handleDragOver}
-                        handleDropOnRole={handleDropOnRole}
-                        handleDragEnter={handleDragEnter}
-                        handleDragLeave={handleDragLeave}
-                        handleDragStart={handleDragStart}
-                        handleDragEnd={handleDragEnd}
-                        handleTextClick={handleTextClick}
-                        handleTextBlur={handleTextBlur}
-                        handleKeyDown={handleKeyDown}
-                        editText={editText}
-                        editingId={editingId}
-                        unassignPerson={handleDropOnAvailable}
-                        handleTextChange={handleTextChange}
-                        allRoles={roles} // Pass allRoles if OrgStructure needs it
-             />
+             {/* Add wrapper div for OrgStructure */}
+             <div className="hierarchy-column">
+               <OrgStructure
+                          roles={roles} // Using imported static roles for now
+                          personnel={personnel}
+                          isUserAdmin={isUserAdmin}
+                          handleDragOver={handleDragOver}
+                          handleDropOnRole={handleDropOnRole}
+                          handleDragEnter={handleDragEnter}
+                          handleDragLeave={handleDragLeave}
+                          handleDragStart={handleDragStart}
+                          handleDragEnd={handleDragEnd}
+                          handleTextClick={handleTextClick}
+                          handleTextBlur={handleTextBlur}
+                          handleKeyDown={handleKeyDown}
+                          editText={editText}
+                          editingId={editingId}
+                          unassignPerson={handleDropOnAvailable}
+                          handleTextChange={handleTextChange}
+                          allRoles={roles} // Pass allRoles if OrgStructure needs it
+               />
+             </div>
              <AvailablePersonnel
                         personnel={personnel}
                         setPersonnel={setPersonnel} // Pass setPersonnel

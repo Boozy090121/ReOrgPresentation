@@ -253,6 +253,7 @@ body {
 .header-actions {
   display: flex;
   gap: 0.5rem;
+  align-items: center;
 }
 
 .section-header {
@@ -353,18 +354,23 @@ body {
 }
 
 /* Structure Tab Layout */
-.structure-tab-content {
+.structure-tab {
   display: flex;
-  gap: 2rem;
+  gap: 2rem; /* Add some space between columns */
+  align-items: flex-start; /* Align items at the top */
 }
 
+/* Assuming OrgStructure is wrapped in a div with this class */
 .hierarchy-column {
-  flex: 3; /* Takes more space */
+  flex: 2; /* Let OrgStructure take up more space (adjust ratio as needed) */
+  /* Optional: Add a max-width if needed */
 }
 
+/* Class used inside AvailablePersonnel component */
 .personnel-column {
-  flex: 1; /* Takes less space */
-  max-width: 300px; /* Limit width */
+  flex: 1; /* Let AvailablePersonnel take up less space */
+  /* Add a minimum width to prevent it from becoming too small */
+  min-width: 300px;
 }
 
 /* Personnel List */
