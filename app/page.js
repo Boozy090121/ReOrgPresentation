@@ -1004,7 +1004,31 @@ export default function Dashboard() {
       {/* Only show tabs if user is logged in */}
       {user && (
           <nav className="sidebar">
-            {/* ... sidebar content ... */}
+            {/* Tab Buttons */}
+            <button 
+              className={`tab-button ${activeTab === 'structure' ? 'active' : ''}`}
+              onClick={() => setActiveTab('structure')}
+            >
+              <Users size={18} /> Structure
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'timeline' ? 'active' : ''}`}
+              onClick={() => setActiveTab('timeline')}
+            >
+              <Calendar size={18} /> Timeline
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'budget' ? 'active' : ''}`}
+              onClick={() => setActiveTab('budget')}
+            >
+              <DollarSign size={18} /> Budget
+            </button>
+            <button 
+              className={`tab-button ${activeTab === 'analysis' ? 'active' : ''}`}
+              onClick={() => setActiveTab('analysis')}
+            >
+              <BarChart size={18} /> Analysis
+            </button>
           </nav>
       )}
 
