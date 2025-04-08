@@ -81,4 +81,4 @@ const getAnalyticsInstance = async () => {
 };
 
 // Export the initialized app and the instance getter functions
-export { app, getDbInstance, getAuthInstance, getAnalyticsInstance }; 
+export { app, getDbInstance, getAuthInstance, getAnalyticsInstance };
