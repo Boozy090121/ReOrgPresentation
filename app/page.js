@@ -77,14 +77,15 @@ export default function Dashboard() {
   } = editingLogic;
   // --------------------------------------------------------
 
-  // Data Loading Effect (depends on user authentication)
-  // --- REFACTORED: Effect 1 - Load Factories on Auth Ready ---
+  // --- DIAGNOSTIC: Comment out useEffect hooks ONLY ---
+  /*
   useEffect(() => {
+    // Effect 1: Load factories on auth ready
     if (!loadingAuth && user) {
       console.log("Auth resolved, loading factories...");
       loadFactories();
     } else if (!loadingAuth && !user) {
-       // Clear all state if user logs out or isn't logged in
+       // Clear state if user logs out
        console.log("Auth resolved, no user. Clearing state.");
        setFactories([]);
        setSelectedFactoryId('');
@@ -98,14 +99,13 @@ export default function Dashboard() {
        setLoadingPresentationData(false);
        setError(null);
     }
-  }, [loadingAuth, user, loadFactories]); // Depends only on auth state and loadFactories callback
+  }, [loadingAuth, user, loadFactories]);
 
-  // --- REFACTORED: Effect 2 - Process Factories Once Loaded ---
   useEffect(() => {
+    // Effect 2: Process factories and load global data
     if (factories.length > 0) {
         console.log("Factories loaded, processing...");
-
-        // Set default selected factory ID (if not already set by user interaction)
+        // Set default selection
         if (!selectedFactoryId) {
             const nonShared = factories.filter(f => f.id !== '_shared');
             if (nonShared.length > 0) {
@@ -113,11 +113,10 @@ export default function Dashboard() {
                 console.log("Default factory selected:", nonShared[0].id);
             } else {
                  console.log("No non-shared factories found, no default selection.");
-                 setSelectedFactoryId(''); // Ensure it's cleared if only _shared exists
+                 setSelectedFactoryId('');
             }
         }
-
-        // Load global personnel data 
+        // Load global personnel
         console.log("Loading global personnel data...");
         loadPersonnel().then(loadedPersonnel => {
             setPersonnel(loadedPersonnel || []);
@@ -126,8 +125,7 @@ export default function Dashboard() {
              console.error("Error loading personnel:", err);
              setError(prev => prev ? prev + "\nFailed to load personnel." : "Failed to load personnel.");
         });
-
-        // Load shared roles data
+        // Load shared roles
         console.log("Loading shared roles data...");
         loadRoles('_shared').then(loadedSharedRoles => {
             setSharedRolesData(loadedSharedRoles || {});
@@ -136,8 +134,7 @@ export default function Dashboard() {
             console.error("Error loading shared roles:", err);
             setError(prev => prev ? prev + "\nFailed to load shared roles." : "Failed to load shared roles.");
         });
-
-        // Load all roles data for presentation view
+        // Load all roles data for presentation
         console.log("Loading all roles data for presentation...");
         setLoadingPresentationData(true);
         const allRolePromises = factories.map(f => loadRoles(f.id));
@@ -155,11 +152,8 @@ export default function Dashboard() {
         }).finally(() => {
             setLoadingPresentationData(false);
         });
-
     } else {
-        // If factories array becomes empty (e.g., after deleting last one), clear related state
-        // This might be redundant if handled by the first effect on logout/no user
-        // but can be kept for robustness
+        // Clear state if factories list is empty
         setSelectedFactoryId('');
         setPersonnel([]);
         setFactoryRoles({});
@@ -167,19 +161,16 @@ export default function Dashboard() {
         setAllRolesData({});
         setTimeline([]);
         setBudgetData({});
-        setInitialDataLoaded(false);
+        setInitialDataLoaded(false); // Ensure flag is reset if no factories
     }
-    // This effect runs when the factories list changes
-  }, [factories, loadPersonnel, loadRoles]); // Removed selectedFactoryId setter logic dep, runs when factories list itself changes
+  }, [factories, loadPersonnel, loadRoles]);
 
-  // --- REFACTORED: Effect 3 - Load Data for Selected Factory ---
   useEffect(() => {
-      // Only run if a valid, non-shared factory is selected
+    // Effect 3: Load data for selected factory
       if (selectedFactoryId && selectedFactoryId !== '_shared') {
           console.log(`Selected factory changed to: ${selectedFactoryId}. Loading its data...`);
-          setError(null); // Clear errors from previous selection
-          setInitialDataLoaded(false); // Reset loading flag for factory-specific data
-
+          setError(null);
+          setInitialDataLoaded(false);
           const loadFactoryData = async () => {
               try {
                   const [loadedRoles, loadedTimeline, loadedBudget] = await Promise.all([
@@ -190,32 +181,30 @@ export default function Dashboard() {
                   setFactoryRoles(loadedRoles || {});
                   setTimeline(loadedTimeline || []);
                   setBudgetData(loadedBudget || {});
-                  setInitialDataLoaded(true); // Factory data loaded
+                  setInitialDataLoaded(true);
                    console.log(`Data loaded successfully for factory: ${selectedFactoryId}`);
               } catch (err) {
                    console.error(`Error loading data for factory ${selectedFactoryId}:`, err);
                    setError(`Failed to load data for factory ${factories.find(f=>f.id===selectedFactoryId)?.name || selectedFactoryId}. Error: ${err.message}`);
-                   // Clear potentially stale data
                    setFactoryRoles({});
                    setTimeline([]);
                    setBudgetData({});
-                   setInitialDataLoaded(false); // Indicate loading failed
+                   setInitialDataLoaded(false);
               }
           };
           loadFactoryData();
-          
       } else {
-            // If no factory selected (or _shared somehow selected), clear factory-specific state
+            // Clear factory-specific data if none selected
             console.log("No valid factory selected or selection cleared. Clearing factory-specific state.");
             setFactoryRoles({});
             setTimeline([]);
             setBudgetData({});
-            setInitialDataLoaded(true); // Consider it 'loaded' in the sense that no data is expected
+            setInitialDataLoaded(true); // Consider state 'loaded' as nothing is expected
       }
-      // This effect runs when the selectedFactoryId changes
-  }, [selectedFactoryId, loadRoles, loadTimeline, loadBudget]); // Only depends on the selected ID and load functions
+  }, [selectedFactoryId, loadRoles, loadTimeline, loadBudget]);
+  */
 
-  // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
+  // --- useCallback Data Functions (Remain Active) ---
   const loadPersonnel = useCallback(async () => {
     const db = getDbInstance();
     if (!db) {
