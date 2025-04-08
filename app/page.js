@@ -15,6 +15,7 @@ import { useAuth } from '../lib/hooks/useAuth';
 import { useInlineEditing } from '../lib/hooks/useInlineEditing';
 import PresentationView from '../components/PresentationView';
 import ConfirmActionModal from '../components/ConfirmActionModal';
+import { useIsClient } from '../lib/hooks/useIsClient';
 
 // Dynamically import components relying heavily on client-side logic/DOM
 const OrgStructure = dynamic(() => import('../components/OrgStructure'), {
@@ -64,24 +65,32 @@ export default function Dashboard() {
 
   // Use the Auth hook
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
+  const isClient = useIsClient(); // Use the hook
 
-  // Instantiate the inline editing hook
-  // --- DIAGNOSTIC: Temporarily comment out useInlineEditing hook ---
-  // const {
-  //   editingId,
-  //   editText,
-  //   handleTextClick,
-  //   handleTextChange,
-  //   handleTextBlur,
-  //   handleKeyDown,
-  // } = useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError);
-  // --- Dummy variables to prevent other errors --- 
-  const editingId = null;
-  const editText = '';
-  const handleTextClick = () => {};
-  const handleTextChange = () => {};
-  const handleTextBlur = () => {};
-  const handleKeyDown = () => {};
+  // --- Conditionally instantiate the inline editing hook ---
+  // Use dummy values during SSR/build when isClient is false
+  const initialEditingState = { 
+      editingId: null, 
+      editText: '', 
+      handleTextClick: () => { console.warn("Edit attempted before client mount"); }, 
+      handleTextChange: () => { console.warn("Edit attempted before client mount"); },
+      handleTextBlur: () => { console.warn("Edit attempted before client mount"); },
+      handleKeyDown: () => { console.warn("Edit attempted before client mount"); }
+  };
+
+  const editingLogic = isClient 
+      ? useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError) 
+      : initialEditingState;
+
+  // Destructure from the conditionally assigned logic
+  const {
+    editingId,
+    editText,
+    handleTextClick,
+    handleTextChange,
+    handleTextBlur,
+    handleKeyDown,
+  } = editingLogic;
   // --------------------------------------------------------
 
   // Data Loading Effect (depends on user authentication)
