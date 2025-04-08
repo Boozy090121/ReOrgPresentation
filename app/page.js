@@ -143,18 +143,67 @@ export default function Dashboard() {
     // Only depend on variables that control *when* to run, not the functions themselves
   }, [isClient, loadingAuth, user, setError, setSelectedFactoryId]); 
 
-  /* --- Start comment block for Effect 2 and 3 ---
+  // /* --- Start comment block for Effect 2 and 3 --- // Remove comment start // Keep comment start before Effect 3
   useEffect(() => {
     // Effect 2: Process factories and load global data
-    if (factories.length > 0) {
-        console.log("Factories loaded, processing...");
-        // ... (rest of Effect 2 logic)
-    } else {
-        // Clear state if factories list is empty
-        // ... (clearing logic) ...
-    }
-  }, [factories, loadPersonnel, loadRoles]);
+    if (isClient) { // Add isClient guard
+      if (factories.length > 0) {
+          console.log("Client: Factories loaded, processing...");
+          // Set default selection logic (already handled in Effect 1 inline)
+          // if (!selectedFactoryId) { ... } 
+          
+          // Load global personnel
+          console.log("Client: Loading global personnel data...");
+          loadPersonnel().then(loadedPersonnel => {
+              setPersonnel(loadedPersonnel || []);
+              console.log("Client: Global personnel loaded.");
+          }).catch(err => {
+               console.error("Error loading personnel:", err);
+               setError(prev => prev ? prev + "\nFailed to load personnel." : "Failed to load personnel.");
+          });
+          // Load shared roles
+          console.log("Client: Loading shared roles data...");
+          loadRoles('_shared').then(loadedSharedRoles => {
+              setSharedRolesData(loadedSharedRoles || {});
+              console.log("Client: Shared roles loaded.");
+          }).catch(err => {
+              console.error("Error loading shared roles:", err);
+              setError(prev => prev ? prev + "\nFailed to load shared roles." : "Failed to load shared roles.");
+          });
+          // Load all roles data for presentation
+          console.log("Client: Loading all roles data for presentation...");
+          setLoadingPresentationData(true);
+          const allRolePromises = factories.map(f => loadRoles(f.id));
+          Promise.all(allRolePromises).then(rolesArrays => {
+              const combinedRoles = {};
+              factories.forEach((factory, index) => {
+                  combinedRoles[factory.id] = rolesArrays[index] || {};
+              });
+              setAllRolesData(combinedRoles);
+              console.log("Client: All roles data loaded successfully.");
+          }).catch(err => {
+              console.error("Error loading all roles data:", err);
+              setError(prev => prev ? prev + "\nFailed to load roles for overview." : "Failed to load roles for overview.");
+              setAllRolesData({}); 
+          }).finally(() => {
+              setLoadingPresentationData(false);
+          });
+      } else {
+          // Clear state if factories list is empty (Should only happen on client after initial load fails/clears)
+          console.log("Client: Effect 2 - Factories list empty, clearing derived state.")
+          setPersonnel([]);
+          // setFactoryRoles({}); // Let Effect 3 handle factory-specific roles
+          setSharedRolesData({});
+          setAllRolesData({});
+          // setTimeline([]); // Let Effect 3 handle factory-specific timeline
+          // setBudgetData({}); // Let Effect 3 handle factory-specific budget
+          setInitialDataLoaded(false); // Needs factory data to be truly loaded
+      }
+    } // End isClient guard
+    // Dependency array includes isClient and the states/callbacks it uses
+  }, [isClient, factories, loadPersonnel, loadRoles, /* selectedFactoryId might not be needed here */ setError, setPersonnel, setSharedRolesData, setAllRolesData, setLoadingPresentationData]);
 
+  /* --- Start comment block for Effect 3 ---
   useEffect(() => {
     // Effect 3: Load data for selected factory
       if (selectedFactoryId && selectedFactoryId !== '_shared') {
@@ -164,7 +213,7 @@ export default function Dashboard() {
             // ... (clearing logic) ...
       }
   }, [selectedFactoryId, loadRoles, loadTimeline, loadBudget]);
-  */ // --- End comment block for Effect 2 and 3 ---
+  */ // --- End comment block for Effect 3 --- // Keep comment end
 
   // --- useCallback Data Functions (Remain Active) ---
   const loadPersonnel = useCallback(async () => {
