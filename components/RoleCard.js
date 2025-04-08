@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, ChevronUp, XCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, XCircle, Trash2, PlusCircle } from 'lucide-react';
 
 const RoleCard = ({
   roleKey,
@@ -21,12 +21,15 @@ const RoleCard = ({
   editingId,
   unassignPerson,
   handleTextChange,
-  allRoles
+  allRoles,
+  deleteRole,
+  addResponsibility,
+  deleteResponsibility
 }) => {
 
   // Add check for essential roleData prop
   if (!roleData) {
-    return <div className="role-card role-card-error">Error: Role data missing</div>;
+    return <div className="role-card role-card-error">Error: Role data missing for key {roleKey}</div>;
   }
 
   // Ensure personnel is an array before filtering
@@ -43,15 +46,56 @@ const RoleCard = ({
   // Check expandedRoles before access
   const isExpanded = expandedRoles && expandedRoles[roleKey];
 
+  // --- EDITABLE ROLE TITLE ---
+  const roleTitleId = `role-${roleKey}-title`;
+  const isEditingRoleTitle = editingId === roleTitleId;
+
   return (
     <div key={roleKey} className={`role-card role-card-${roleKey}`} style={cardStyle}>
-      <div className="role-header" onClick={() => toggleRole(roleKey)} style={headerStyle}>
+      <div className="role-header" style={headerStyle}>
         <div className="role-header-title">
-          {roleData.icon}
-          <h3>{roleData.title || 'Unknown Role'} ({headcount})</h3> {/* Display headcount */}
+          {/* Display icon if available */}
+          {roleData.icon && <span className="role-icon">{roleData.icon}</span>}
+          <div
+            className="editable-text role-title"
+            data-edit-id={roleTitleId}
+            contentEditable={isUserAdmin}
+            suppressContentEditableWarning={true}
+            onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
+            onClick={() => isUserAdmin && handleTextClick(roleTitleId, roleData.title || '')}
+            onBlur={() => handleTextBlur(roleTitleId)}
+            onKeyDown={(e) => handleKeyDown(e, roleTitleId)}
+            onInput={handleTextChange}
+            style={{ cursor: isUserAdmin ? 'text' : 'default' }} // Indicate editability
+          >
+            {isEditingRoleTitle ? editText : (roleData.title || 'Unnamed Role')}
+          </div>
+          <span className="role-headcount">({headcount})</span> {/* Display headcount next to title */}
         </div>
-        <span>{isExpanded ? <ChevronUp /> : <ChevronDown />}</span>
+        <span onClick={() => toggleRole(roleKey)} style={{ cursor: 'pointer' }} title={isExpanded ? 'Collapse' : 'Expand'}>
+          {isExpanded ? <ChevronUp /> : <ChevronDown />}
+        </span>
+        {isUserAdmin && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteRole(roleKey);
+            }}
+            className="button-icon button-danger"
+            title="Delete this role"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '2px',
+              cursor: 'pointer',
+              marginLeft: '8px'
+            }}
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
+
       {isExpanded && (
         <div
           className="role-content drop-zone"
@@ -63,20 +107,145 @@ const RoleCard = ({
           <h4>Detailed Responsibilities:</h4>
           {roleData.detailedResponsibilities ? (
             <div className="detailed-responsibilities">
-              {Object.entries(roleData.detailedResponsibilities).map(([category, details]) => (
-                <div key={category} className="responsibility-category">
-                  <h5>{category}</h5>
-                  {Array.isArray(details) && (
-                    <ul>
-                      {details.map((detail, index) => <li key={index}>{detail}</li>)}
-                    </ul>
-                  )}
-                </div>
-              ))}
+              {Object.entries(roleData.detailedResponsibilities).map(([category, details]) => {
+                const categoryId = `role-${roleKey}-responsibilityCategory-${category}`;
+                const isEditingCategory = editingId === categoryId;
+                return (
+                  <div key={category} className="responsibility-category">
+                    <h5>{category}</h5>
+                    {Array.isArray(details) && (
+                      <ul>
+                        {details.map((detail, index) => {
+                          const detailId = `role-${roleKey}-detailedResponsibility-${category}-${index}`;
+                          const isEditingDetail = editingId === detailId;
+                          return (
+                            <li
+                              key={`${category}-${index}`}
+                              className="responsibility-item-container"
+                              style={{ display: 'flex', alignItems: 'center', marginBottom: '2px' }}
+                            >
+                              <div
+                                className="editable-text responsibility-item"
+                                data-edit-id={detailId}
+                                contentEditable={isUserAdmin}
+                                suppressContentEditableWarning={true}
+                                onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
+                                onClick={() => isUserAdmin && handleTextClick(detailId, detail)}
+                                onBlur={() => handleTextBlur(detailId)}
+                                onKeyDown={(e) => handleKeyDown(e, detailId)}
+                                onInput={handleTextChange}
+                              >
+                                {isEditingDetail ? editText : detail}
+                              </div>
+                              {isUserAdmin && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteResponsibility(roleKey, 'detailed', category, detail);
+                                  }}
+                                  className="button-icon-danger button-tiny"
+                                  title="Delete responsibility"
+                                  style={{ marginLeft: '8px' }}
+                                >
+                                  <XCircle size={12} />
+                                </button>
+                              )}
+                            </li>
+                          );
+                        })}
+                        {isUserAdmin && (
+                          <li style={{ listStyle: 'none', marginTop: '5px' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addResponsibility(roleKey, 'detailed', category);
+                              }}
+                              className="button-secondary button-tiny"
+                              title="Add responsibility to this category"
+                              style={{ display: 'flex', alignItems: 'center' }}
+                            >
+                              <PlusCircle size={12} style={{ marginRight: '4px' }} /> Add Item
+                            </button>
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            // Fallback to basic responsibilities if detailed are missing
-            <ul>{Array.isArray(roleData.responsibilities) && roleData.responsibilities.map((resp, index) => <li key={index}>{resp}</li>)}</ul>
+            // Fallback to basic responsibilities - Make these editable too
+            <h4>Responsibilities:</h4>
+            {Array.isArray(roleData.responsibilities) && roleData.responsibilities.length > 0 ? (
+              <ul>
+                {roleData.responsibilities.map((resp, index) => {
+                  const respId = `role-${roleKey}-responsibility-${index}`;
+                  const isEditingResp = editingId === respId;
+                  return (
+                    <li
+                      key={index}
+                      className="responsibility-item-container"
+                      style={{ display: 'flex', alignItems: 'center', marginBottom: '2px' }}
+                    >
+                      <div
+                        className="editable-text responsibility-item"
+                        data-edit-id={respId}
+                        contentEditable={isUserAdmin}
+                        suppressContentEditableWarning={true}
+                        onMouseDown={(e) => { if (!isUserAdmin) e.preventDefault(); }}
+                        onClick={() => isUserAdmin && handleTextClick(respId, resp)}
+                        onBlur={() => handleTextBlur(respId)}
+                        onKeyDown={(e) => handleKeyDown(e, respId)}
+                        onInput={handleTextChange}
+                      >
+                        {isEditingResp ? editText : resp}
+                      </div>
+                      {isUserAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteResponsibility(roleKey, 'basic', null, resp);
+                          }}
+                          className="button-icon-danger button-tiny"
+                          title="Delete responsibility"
+                          style={{ marginLeft: '8px' }}
+                        >
+                          <XCircle size={12} />
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+                {isUserAdmin && (
+                  <li style={{ listStyle: 'none', marginTop: '5px' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addResponsibility(roleKey, 'basic');
+                      }}
+                      className="button-secondary button-tiny"
+                      title="Add new responsibility"
+                      style={{ display: 'flex', alignItems: 'center' }}
+                    >
+                      <PlusCircle size={12} style={{ marginRight: '4px' }} /> Add Item
+                    </button>
+                  </li>
+                )}
+              </ul>
+            ) : (
+              <p>No responsibilities defined.</p>
+            )}
+            {isUserAdmin && (
+              <button
+                onClick={() => addResponsibility(roleKey, 'basic')}
+                className="button-secondary button-tiny"
+                title="Add first responsibility"
+                style={{ display: 'flex', alignItems: 'center', marginTop: '5px' }}
+              >
+                <PlusCircle size={12} style={{ marginRight: '4px' }} /> Add Responsibility
+              </button>
+            )}
           )}
           <div className="role-details">
             <p><strong>Salary:</strong> {roleData.salary || 'N/A'}</p>

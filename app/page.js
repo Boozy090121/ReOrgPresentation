@@ -6,14 +6,14 @@ import dynamic from 'next/dynamic';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle,
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save, Trash2 } from 'lucide-react';
 import { getDbInstance } from './firebase/config';
-import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, addDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc, getDoc, addDoc, writeBatch, 
+         arrayUnion, arrayRemove } from 'firebase/firestore';
 import { roles, timelineData, colors, timelineInitialData, initialBudgetData } from '../lib/data';
-import Timeline from '../components/Timeline';
-import Budget from '../components/Budget';
 import AuthSection from '../components/AuthSection';
 import WorkloadAnalysis from '../components/WorkloadAnalysis';
 import { useAuth } from '../lib/hooks/useAuth';
 import { useInlineEditing } from '../lib/hooks/useInlineEditing';
+import PresentationView from '../components/PresentationView';
 
 // Dynamically import components relying heavily on client-side logic/DOM
 const OrgStructure = dynamic(() => import('../components/OrgStructure'), {
@@ -46,12 +46,17 @@ const Budget = dynamic(() => import('../components/Budget'), {
 // Main Dashboard component
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('structure');
+  const [factories, setFactories] = useState([]);
+  const [selectedFactoryId, setSelectedFactoryId] = useState('');
+  const [factoryRoles, setFactoryRoles] = useState({});
   const [personnel, setPersonnel] = useState([]);
   const [draggedPerson, setDraggedPerson] = useState(null);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [budgetData, setBudgetData] = useState({});
   const [timeline, setTimeline] = useState([]);
+  const [sharedRolesData, setSharedRolesData] = useState({}); // State for shared roles
+  const [allRolesData, setAllRolesData] = useState({}); // State for all roles across factories
 
   // Use the Auth hook
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
@@ -69,49 +74,94 @@ export default function Dashboard() {
   // Data Loading Effect (depends on user authentication)
   useEffect(() => {
     console.log("Data loading effect triggered. LoadingAuth:", loadingAuth, "User:", !!user);
-    if (!loadingAuth) {
-      console.log("Auth resolved. Starting data load (User:", user ? user.uid : 'none', ")");
-      const loadAllData = async () => {
-        setError(null);
-        setInitialDataLoaded(false);
-        console.log("loadAllData called...");
-        try {
-           const db = getDbInstance();
-           if (!db) {
-               console.error("Initial Load: DB not available!");
-               setError("Database connection error on initial load. Please refresh.");
-               setInitialDataLoaded(false);
-               return;
-           }
-          console.log("Loading personnel...");
-          const loadedPersonnel = await loadPersonnel();
-          console.log("Loading timeline...");
-          const loadedTimelineData = await loadTimeline();
-          console.log("Loading budget...");
-          const loadedBudget = await loadBudget();
+    if (!loadingAuth && user) {
+      console.log("Auth resolved. User authenticated. Proceeding with data load checks.");
+      // Load factories first (including _shared)
+      loadFactories().then(loadedFactories => {
+        // --- Load All Roles Data for Presentation View --- 
+        const allRolePromises = loadedFactories.map(f => loadRoles(f.id));
+        Promise.all(allRolePromises).then(rolesArrays => {
+          const combinedRoles = {};
+          loadedFactories.forEach((factory, index) => {
+            combinedRoles[factory.id] = rolesArrays[index] || {};
+          });
+          setAllRolesData(combinedRoles);
+          console.log("All roles data loaded for presentation view.");
+        }).catch(err => {
+          console.error("Error loading all roles data:", err);
+          // setError("Failed to load data required for presentation view.");
+        });
+        // --- End Load All Roles ---
 
-          console.log("Setting state with loaded data...");
-          setPersonnel(loadedPersonnel || []);
-          setTimeline(loadedTimelineData || []);
-          setBudgetData(loadedBudget || {});
+        // Determine the factory ID to load data for selection (exclude _shared)
+        const nonShared = loadedFactories.filter(f => f.id !== '_shared');
+        const factoryIdToLoad = selectedFactoryId || (nonShared.length > 0 ? nonShared[0].id : null);
+
+        // --- Load Shared Roles Always --- 
+        loadRoles('_shared').then(loadedSharedRoles => {
+          setSharedRolesData(loadedSharedRoles || {});
+          console.log("Shared roles loaded:", Object.keys(loadedSharedRoles || {}).length);
+        }).catch(err => {
+          console.error("Error loading shared roles:", err);
+          // Decide if this error should block rendering or just show a warning
+          // setError(prev => (prev ? prev + "\nFailed to load shared roles." : "Failed to load shared roles."));
+        });
+        // --- End Load Shared Roles ---
+
+        if (factoryIdToLoad) {
+          console.log(`Auth resolved & factories loaded. Starting data load for selected factory: ${factoryIdToLoad}`);
+          const loadAllDataForFactory = async () => {
+            setError(null);
+            setInitialDataLoaded(false);
+            console.log(`loadAllDataForFactory called for factory: ${factoryIdToLoad}...`);
+            try {
+              // Personnel, Timeline, Budget loading functions now need factoryId
+              console.log("Loading personnel...");
+              const loadedPersonnel = await loadPersonnel();
+              console.log("Loading roles for factory:", factoryIdToLoad);
+              const loadedRoles = await loadRoles(factoryIdToLoad);
+              console.log("Loading timeline for factory:", factoryIdToLoad);
+              const loadedTimelineData = await loadTimeline(factoryIdToLoad);
+              console.log("Loading budget for factory:", factoryIdToLoad);
+              const loadedBudget = await loadBudget(factoryIdToLoad);
+
+              console.log("Setting state with loaded data...");
+              setPersonnel(loadedPersonnel || []);
+              setFactoryRoles(loadedRoles || {});
+              setTimeline(loadedTimelineData || []);
+              setBudgetData(loadedBudget || {});
+              setInitialDataLoaded(true);
+              console.log("Data loading complete for factory", factoryIdToLoad);
+            } catch (err) {
+              console.error(`Error within loadAllDataForFactory (${factoryIdToLoad}):`, err);
+              setError(`Failed to load data for factory ${factories.find(f=>f.id===factoryIdToLoad)?.name || factoryIdToLoad}: ${err.message}.`);
+              setInitialDataLoaded(false);
+            }
+          };
+          loadAllDataForFactory();
+        } else if (loadedFactories.length === 0) {
+          console.log("No factories available to load data for.");
           setInitialDataLoaded(true);
-          console.log("Data loading complete. initialDataLoaded set to true.");
-        } catch (err) {
-          console.error("Error within loadAllData:", err);
-          setError(`Failed to load application data: ${err.message}. Please try refreshing.`);
-          setInitialDataLoaded(false);
+        } else {
+          console.log("Factory ID to load is not determined yet.");
         }
-      };
-      loadAllData();
+      });
+
+    } else if (!loadingAuth && !user) {
+      console.log("Auth resolved. No user logged in.");
+      setFactories([]);
+      setSelectedFactoryId('');
+      setPersonnel([]);
+      setFactoryRoles({});
+      setTimeline([]);
+      setBudgetData({});
+      setInitialDataLoaded(false);
+      setError(null);
     } else {
-      console.log("Auth not yet resolved (loadingAuth is true).");
-       setInitialDataLoaded(false);
-       setPersonnel([]);
-       setTimeline([]);
-       setBudgetData({});
-       setError(null);
+      console.log("Auth not yet resolved or no user.");
+      setInitialDataLoaded(false);
     }
-  }, [loadingAuth, user, loadPersonnel, loadTimeline, loadBudget]);
+  }, [loadingAuth, user, selectedFactoryId, loadFactories, loadPersonnel, loadRoles, loadTimeline, loadBudget]);
   
   // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
   const loadPersonnel = useCallback(async () => {
@@ -133,7 +183,8 @@ export default function Dashboard() {
     }
   }, [setError]);
 
-  const loadTimeline = useCallback(async () => {
+  const loadTimeline = useCallback(async (factoryId) => {
+    if (!factoryId) return [];
     const db = getDbInstance();
     if (!db) {
         console.error("Load Timeline: DB not available");
@@ -141,7 +192,7 @@ export default function Dashboard() {
         return [];
     }
     try {
-        const docRef = doc(db, 'timeline', 'current');
+        const docRef = doc(db, 'factories', factoryId, 'timeline', 'current');
         const docSnap = await getDoc(docRef);
         let loadedTimeline = [];
         if (docSnap.exists()) {
@@ -150,18 +201,19 @@ export default function Dashboard() {
         } else {
           loadedTimeline = timelineInitialData;
           await setDoc(docRef, { phases: timelineInitialData });
-          console.log("Timeline document created.");
+          console.log("Timeline document created for factory", factoryId);
         }
-        console.log("Timeline loaded:", loadedTimeline.length, "phases");
+        console.log("Timeline loaded for factory", factoryId, ":", loadedTimeline.length, "phases");
         return loadedTimeline;
     } catch (err) {
-        console.error("Error loading timeline:", err);
-        setError(prev => prev ? prev + "\nFailed to load timeline." : "Failed to load timeline.");
+        console.error("Error loading timeline for factory", factoryId, ":", err);
+        setError(prev => prev ? prev + "\nFailed to load timeline for " + factoryId + "." : "Failed to load timeline for " + factoryId + ".");
         return timelineInitialData;
     }
   }, [setError]);
 
-  const loadBudget = useCallback(async () => {
+  const loadBudget = useCallback(async (factoryId) => {
+     if (!factoryId) return {};
      const db = getDbInstance();
      if (!db) {
         console.error("Load Budget: DB not available");
@@ -169,7 +221,7 @@ export default function Dashboard() {
         return {};
      }
      try {
-        const docRef = doc(db, 'budget', 'current');
+        const docRef = doc(db, 'factories', factoryId, 'budget', 'current');
         const docSnap = await getDoc(docRef);
         let loadedBudget = {};
         if (docSnap.exists()) {
@@ -178,16 +230,203 @@ export default function Dashboard() {
         } else {
           loadedBudget = initialBudgetData;
           await setDoc(docRef, { factories: initialBudgetData });
-          console.log("Budget document created with initial factory data.");
+          console.log("Budget document created for factory", factoryId);
         }
-        console.log("Budget loaded:", Object.keys(loadedBudget).length, "factories");
+        console.log("Budget loaded for factory", factoryId, ":", Object.keys(loadedBudget).length, "factories");
         return loadedBudget;
     } catch (err) {
-        console.error("Error loading budget:", err);
-        setError(prev => prev ? prev + "\nFailed to load budget." : "Failed to load budget.");
+        console.error("Error loading budget for factory", factoryId, ":", err);
+        setError(prev => prev ? prev + "\nFailed to load budget for " + factoryId + "." : "Failed to load budget for " + factoryId + ".");
         return initialBudgetData;
     }
   }, [setError]);
+
+  const loadFactories = useCallback(async () => {
+      const db = getDbInstance();
+      if (!db) {
+          console.error("Load Factories: DB not available");
+          setError("DB connection lost. Cannot load factories.");
+          return [];
+      }
+      try {
+          const querySnapshot = await getDocs(collection(db, 'factories'));
+          const loadedFactories = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          console.log("Factories loaded:", loadedFactories.length);
+          if (loadedFactories.length > 0) {
+              setFactories(loadedFactories);
+              // Set default selection, excluding '_shared' if possible
+              const nonSharedFactories = loadedFactories.filter(f => f.id !== '_shared');
+              if (!selectedFactoryId && nonSharedFactories.length > 0) {
+                  setSelectedFactoryId(nonSharedFactories[0].id);
+                  console.log("Default factory set:", nonSharedFactories[0].id);
+              } else if (!selectedFactoryId && loadedFactories.length > 0) {
+                   // If only '_shared' exists, don't select anything by default
+                   setSelectedFactoryId(''); 
+                   console.log("Only shared factory found, no default selection.");
+              }
+          } else {
+               setFactories([]);
+               setSelectedFactoryId('');
+               console.log("No factories found.");
+               setError("No focus factories found. Please configure factories in the database.");
+          }
+          return loadedFactories;
+      } catch (err) {
+          console.error("Error loading factories:", err);
+          setError(prev => (prev ? prev + "\nFailed to load factories." : "Failed to load factories."));
+          setFactories([]);
+          setSelectedFactoryId('');
+          return [];
+      }
+  }, [setError, selectedFactoryId]);
+
+  const loadRoles = useCallback(async (factoryId) => {
+      if (!factoryId) {
+          console.log("loadRoles skipped: no factoryId provided.");
+          return {};
+      }
+      const db = getDbInstance();
+      if (!db) {
+          console.error("Load Roles: DB not available");
+          setError(prev => prev ? prev + "\nDB connection lost." : "DB connection lost.");
+          return {};
+      }
+      try {
+          const rolesRef = collection(db, 'factories', factoryId, 'roles');
+          const querySnapshot = await getDocs(rolesRef);
+          const loadedRoles = {};
+          querySnapshot.forEach(doc => {
+              loadedRoles[doc.id] = { id: doc.id, ...doc.data() };
+          });
+          console.log(`Roles loaded for factory ${factoryId}:`, Object.keys(loadedRoles).length);
+           if (Object.keys(loadedRoles).length === 0) {
+               console.warn(`No roles found for factory ${factoryId}. Consider adding default roles.`);
+           }
+          return loadedRoles;
+      } catch (err) {
+          console.error(`Error loading roles for factory ${factoryId}:`, err);
+          setError(prev => prev ? prev + "\nFailed to load roles for factory " + factoryId + "." : "Failed to load roles for factory " + factoryId + ".");
+          return {};
+      }
+  }, [setError]);
+
+  // --- NEW: Add Factory ---
+  const addFactory = useCallback(async () => {
+      const db = getDbInstance();
+      if (!isUserAdmin || !db) {
+          setError("Permission denied or database error. Cannot add factory.");
+          return;
+      }
+      setError(null);
+
+      const factoryBaseName = "New Focus Factory";
+      let newFactoryName = factoryBaseName;
+      let counter = 1;
+      // Simple check to avoid immediate name collision (more robust check might involve querying)
+      while (factories.some(f => f.name === newFactoryName)) {
+          newFactoryName = `${factoryBaseName} ${++counter}`;
+      }
+
+      const newFactoryData = {
+          name: newFactoryName,
+          description: "", // Add a default description field if desired
+          createdAt: new Date()
+          // Add any other default fields for a new factory here
+      };
+
+      try {
+          const docRef = await addDoc(collection(db, 'factories'), newFactoryData);
+          console.log("New factory added with ID:", docRef.id);
+          const addedFactory = { id: docRef.id, ...newFactoryData };
+
+          // Refresh factory list and select the new one
+          setFactories(prev => [...prev, addedFactory]);
+          setSelectedFactoryId(docRef.id);
+
+          // Optionally, seed initial data (roles, timeline, budget) for the new factory
+          // Example: Seed initial budget
+          const initialBudget = initialBudgetData; // Use imported initial data
+          const budgetDocRef = doc(db, 'factories', docRef.id, 'budget', 'current');
+          await setDoc(budgetDocRef, { factories: initialBudget, createdAt: new Date() }); // Assuming budget structure key is 'factories'
+          console.log(`Initial budget seeded for factory ${docRef.id}`);
+
+          // Example: Seed initial timeline
+          const initialTimeline = timelineInitialData; // Use imported initial data
+          const timelineDocRef = doc(db, 'factories', docRef.id, 'timeline', 'current');
+          await setDoc(timelineDocRef, { phases: initialTimeline, createdAt: new Date() });
+          console.log(`Initial timeline seeded for factory ${docRef.id}`);
+
+          // Example: Seed initial roles (might copy from lib/data or have a minimal default)
+          // This is more complex as lib/data roles include JSX icons
+          // A simpler approach might be to create one default role or leave it empty
+          // const rolesRef = collection(db, 'factories', docRef.id, 'roles');
+          // await addDoc(rolesRef, { title: "Default Role", responsibilities: [], createdAt: new Date() });
+          // console.log(`Initial role seeded for factory ${docRef.id}`);
+          // For now, let's not seed roles automatically, requires manual setup or separate seeding script
+
+          // Manually trigger load for the new factory's data if needed, though selection change should handle it.
+          // loadRoles(docRef.id).then(setFactoryRoles);
+          // loadTimeline(docRef.id).then(setTimeline);
+          // loadBudget(docRef.id).then(setBudgetData);
+
+      } catch (err) {
+          console.error("Error adding factory:", err);
+          setError("Failed to add new factory to the database.");
+      }
+  }, [isUserAdmin, setError, setFactories, setSelectedFactoryId, factories, initialBudgetData, timelineInitialData]); // Added dependencies
+
+  // --- NEW: Delete Factory ---
+  const deleteFactory = useCallback(async () => {
+      const db = getDbInstance();
+      if (!isUserAdmin || !db || !selectedFactoryId) {
+          setError("Permission denied, no factory selected, or database error. Cannot delete factory.");
+          return;
+      }
+
+      const factoryToDelete = factories.find(f => f.id === selectedFactoryId);
+      if (!factoryToDelete) {
+          setError("Cannot delete: Selected factory not found in the list.");
+          return;
+      }
+
+      // --- Confirmation --- 
+      const confirmation = window.confirm(
+          `Are you sure you want to permanently delete the factory "${factoryToDelete.name || selectedFactoryId}"? ` +
+          `This action cannot be undone.\n\n` +
+          `(Note: Associated roles, timeline, and budget data within this factory will need manual cleanup or a dedicated script/function.)`
+      );
+
+      if (!confirmation) {
+          return; // User cancelled
+      }
+
+      setError(null);
+      try {
+          const factoryDocRef = doc(db, 'factories', selectedFactoryId);
+          await deleteDoc(factoryDocRef);
+          console.log("Deleted factory with ID:", selectedFactoryId);
+
+          // Update local state
+          const remainingFactories = factories.filter(f => f.id !== selectedFactoryId);
+          setFactories(remainingFactories);
+
+          // Select the first remaining factory, or clear selection if none left
+          if (remainingFactories.length > 0) {
+              setSelectedFactoryId(remainingFactories[0].id);
+          } else {
+              setSelectedFactoryId('');
+              // Clear dependent data as no factory is selected
+              setFactoryRoles({});
+              setTimeline([]);
+              setBudgetData({});
+              setInitialDataLoaded(true); // Still considered loaded, just empty
+          }
+
+      } catch (err) {
+          console.error("Error deleting factory:", err);
+          setError(`Failed to delete factory ${factoryToDelete.name || selectedFactoryId}. Error: ${err.message}`);
+      }
+  }, [isUserAdmin, selectedFactoryId, factories, setError, setFactories, setSelectedFactoryId]);
 
   const handleDragStart = (e, person) => {
     if (!isUserAdmin) {
@@ -226,7 +465,8 @@ export default function Dashboard() {
     }
     setError(null);
     const personId = draggedPerson.id;
-    const previousRole = draggedPerson.assignedRole;
+    const previousRole = draggedPerson.assignedRoleKey;
+    const previousFactory = draggedPerson.assignedFactoryId;
 
     if (!personId) {
         setError("Cannot assign role: Invalid person data.");
@@ -234,22 +474,37 @@ export default function Dashboard() {
         return;
     }
 
-    if (previousRole === roleKey) return;
+    // Determine if the target role is shared or belongs to the selected factory
+    const isSharedRole = sharedRolesData && sharedRolesData[roleKey];
+    const targetFactoryId = isSharedRole ? '_shared' : selectedFactoryId;
 
-    setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: roleKey } : p));
+    // Check if a valid factory context exists (either selected or it's a shared role drop)
+    if (!targetFactoryId) {
+        setError("Cannot assign role: No target factory context (selected or shared).");
+        return;
+    }
+
+    // Prevent drop if it's the same role in the same factory (or shared context)
+    if (previousRole === roleKey && previousFactory === targetFactoryId) return;
+
+    // Optimistic update locally
+    setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRoleKey: roleKey, assignedFactoryId: targetFactoryId } : p));
 
     try {
       if (!db) throw new Error("Database connection lost during update.");
+      // Update the personnel document with the new factory (or _shared) and role
       await updateDoc(doc(db, 'personnel', personId), {
-        assignedRole: roleKey,
+        assignedRoleKey: roleKey,
+        assignedFactoryId: targetFactoryId, // Use targetFactoryId
         updatedAt: new Date()
       });
-      console.log(`Assigned ${personId} to ${roleKey}`);
+      console.log(`Assigned ${personId} to ${roleKey} in factory ${targetFactoryId}`);
     } catch (err) {
       setError('Failed to assign role. Reverting change.');
       console.error('Error updating assignment:', err);
-      setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRole: previousRole } : p));
+      setPersonnel(prev => prev.map(p => p.id === personId ? { ...p, assignedRoleKey: previousRole, assignedFactoryId: previousFactory } : p));
     }
+    setDraggedPerson(null);
   };
 
   const handleDropOnAvailable = async () => {
@@ -560,100 +815,32 @@ export default function Dashboard() {
     }
   }, [setError]);
 
+  // --- MODIFIED: Update Firestore Data (Handles Array Updates for Roles) ---
   const updateFirestoreData = useCallback(async (id, value) => {
     const db = getDbInstance();
-    if (!id || typeof id !== 'string' || !db) {
+    if (!id || typeof id !== 'string' || !db || !selectedFactoryId) {
         if (!db) setError("Database error. Cannot save changes.");
-        else setError("Invalid data reference. Cannot save changes.");
+        else setError("Invalid data reference or factory selection. Cannot save changes.");
         return false;
     }
 
     const parts = id.split('-');
     if (parts.length < 3) {
-        setError("Invalid data structure for saving.");
+        setError("Invalid data structure for saving (ID format).");
+        console.error("Invalid ID format for updateFirestoreData:", id);
         return false;
     }
     const type = parts[0];
+    const docId = parts[1]; // Role Key or Person ID
+    const field = parts[2]; // Top-level field or category
 
     try {
-        if (type === 'timeline') {
-            const phaseIndex = parseInt(parts[1], 10);
-            const field = parts[2];
-            let activityIndex = null;
-            if (field === 'activity') {
-                if (parts.length < 4) throw new Error('Invalid timeline activity ID');
-                activityIndex = parseInt(parts[3], 10);
-            }
+        let docRef;
+        let updatePayload = {};
 
-            if (isNaN(phaseIndex) || phaseIndex < 0 || (activityIndex !== null && (isNaN(activityIndex) || activityIndex < 0))) {
-                 throw new Error('Invalid index in timeline ID');
-            }
-
-            let fieldPath;
-            if (activityIndex !== null) {
-                 fieldPath = `phases.${phaseIndex}.activities.${activityIndex}`;
-            } else {
-                 fieldPath = `phases.${phaseIndex}.${field}`;
-            }
-
-            const timelineDocRef = doc(db, 'timeline', 'current');
-            await updateDoc(timelineDocRef, { [fieldPath]: value, updatedAt: new Date() });
-            console.log(`Updated timeline field: ${fieldPath}`);
-            return true;
-
-        } else if (type === 'budget') {
-             const factoryId = parts[1];
-             const categoryKey = parts[2];
-
-             if (!factoryId) throw new Error('Missing factoryId in budget ID');
-
-             let fieldPath = `factories.${factoryId}`;
-             let updateValue = value;
-
-             if (categoryKey === 'factoryName') {
-                fieldPath += '.name';
-             } else if (categoryKey === 'productionVolume') {
-                fieldPath += '.productionVolume';
-                const numValue = Number(value);
-                updateValue = isNaN(numValue) ? 0 : numValue;
-             } else if (categoryKey === 'personnelCosts') {
-                if (parts.length < 6) throw new Error('Invalid budget personnelCosts ID');
-                const personnelCategoryKey = parts[3];
-                const roleIndex = parseInt(parts[4], 10);
-                const roleField = parts[5];
-                if (isNaN(roleIndex) || roleIndex < 0 || !personnelCategoryKey || !roleField) throw new Error('Invalid index/field in budget personnelCosts ID');
-                fieldPath += `.personnelCosts.${personnelCategoryKey}.roles.${roleIndex}.${roleField}`;
-                if (roleField === 'count') {
-                    const numValue = Number(value);
-                    updateValue = isNaN(numValue) ? 0 : numValue;
-                }
-            } else if (categoryKey === 'operationalExpenses') {
-                if (parts.length < 5) throw new Error('Invalid budget operationalExpenses ID');
-                const opExIndex = parseInt(parts[3], 10);
-                const opExField = parts[4];
-                 if (isNaN(opExIndex) || opExIndex < 0 || !opExField) throw new Error('Invalid index/field in budget operationalExpenses ID');
-                fieldPath += `.operationalExpenses.${opExIndex}.${opExField}`;
-                 if (opExField === 'amount') {
-                     const numValue = Number(value);
-                     updateValue = isNaN(numValue) ? 0 : numValue;
-                 }
-             } else {
-                throw new Error(`Unknown budget category key: ${categoryKey}`);
-             }
-
-             const budgetDocRef = doc(db, 'budget', 'current');
-             await updateDoc(budgetDocRef, { [fieldPath]: updateValue, updatedAt: new Date() });
-             console.log(`Updated budget field: ${fieldPath}`);
-             return true;
-
-        } else if (type === 'personnel') {
-            const personId = parts[1];
-            const field = parts[2];
-            if (!personId || !field) {
-                 setError("Invalid personnel data for saving.");
-                 return false;
-            }
-
+        if (type === 'personnel') {
+            // Handle personnel updates (as before)
+            docRef = doc(db, 'personnel', docId);
             let updateValue = value;
             if (field === 'skills' && typeof value === 'string') {
                 updateValue = value.split(',').map(s => s.trim()).filter(Boolean);
@@ -661,65 +848,284 @@ export default function Dashboard() {
                 const numValue = Number(value);
                 updateValue = isNaN(numValue) ? 0 : numValue;
             }
+            updatePayload = { [field]: updateValue, updatedAt: new Date() };
+            await updateDoc(docRef, updatePayload);
+            console.log(`Updated personnel ${docId} field ${field}`);
 
-            const updateData = { [field]: updateValue, updatedAt: new Date() };
-            await updateDoc(doc(db, 'personnel', personId), updateData);
-            console.log(`Updated personnel ${personId} field ${field}`);
-            return true;
+        } else if (type === 'role') {
+            // Handle role updates
+            docRef = doc(db, 'factories', selectedFactoryId, 'roles', docId);
+
+            if (field === 'title') { // Simple field update
+                 updatePayload = { title: value, updatedAt: new Date() };
+                 await updateDoc(docRef, updatePayload);
+                 console.log(`Updated role ${docId} field title`);
+
+            } else if (field === 'responsibility') { // Basic responsibility item update
+                 if (parts.length < 4) throw new Error('Invalid role responsibility ID');
+                 const index = parseInt(parts[3], 10);
+                 if (isNaN(index)) throw new Error('Invalid index in role responsibility ID');
+
+                 // Need to fetch current array, modify, and update the whole array
+                 const roleSnap = await getDoc(docRef);
+                 if (!roleSnap.exists()) throw new Error('Role not found for update');
+                 const currentData = roleSnap.data();
+                 const currentResponsibilities = Array.isArray(currentData.responsibilities) ? [...currentData.responsibilities] : [];
+                 if (index >= 0 && index < currentResponsibilities.length) {
+                     currentResponsibilities[index] = value; // Update the item at index
+                     updatePayload = { responsibilities: currentResponsibilities, updatedAt: new Date() };
+                     await updateDoc(docRef, updatePayload);
+                     console.log(`Updated role ${docId} responsibility at index ${index}`);
+                 } else {
+                     throw new Error(`Invalid index ${index} for responsibilities array`);
+                 }
+
+            } else if (field === 'detailedResponsibility') { // Detailed responsibility item update
+                 if (parts.length < 5) throw new Error('Invalid role detailed responsibility ID');
+                 const category = parts[3];
+                 const index = parseInt(parts[4], 10);
+                 if (isNaN(index) || !category) throw new Error('Invalid category/index in role detailed responsibility ID');
+
+                 const roleSnap = await getDoc(docRef);
+                 if (!roleSnap.exists()) throw new Error('Role not found for update');
+                 const currentData = roleSnap.data();
+                 const currentDetailed = currentData.detailedResponsibilities ? JSON.parse(JSON.stringify(currentData.detailedResponsibilities)) : {};
+                 
+                 if (currentDetailed[category] && Array.isArray(currentDetailed[category]) && index >= 0 && index < currentDetailed[category].length) {
+                     currentDetailed[category][index] = value; // Update item at index
+                     // Use dot notation for updating nested map fields
+                     updatePayload[`detailedResponsibilities.${category}`] = currentDetailed[category]; 
+                     updatePayload.updatedAt = new Date();
+                     await updateDoc(docRef, updatePayload); 
+                     console.log(`Updated role ${docId} detailed responsibility in category ${category} at index ${index}`);
+                 } else {
+                    throw new Error(`Invalid category ${category} or index ${index} for detailed responsibilities array`);
+                 }
+            } else {
+                 // Handle other simple role fields if needed (e.g., salary, department)
+                 // updatePayload = { [field]: value, updatedAt: new Date() }; 
+                 // await updateDoc(docRef, updatePayload);
+                 // console.log(`Updated role ${docId} field ${field}`);
+                 console.warn(`Unhandled role field update for: ${field}`);
+                 return false; // Indicate unhandled update
+            }
+        } 
+        // Add handling for timeline, budget if they use this same update function
+        // else if (type === 'timeline') { ... }
+        // else if (type === 'budget') { ... }
+        
+        else {
+            console.warn("updateFirestoreData: Unrecognized type:", type);
+            setError(`Cannot save changes for unknown data type: ${type}`);
+            return false;
         }
-         console.warn("updateFirestoreData: Unrecognized type:", type);
-         setError(`Cannot save changes for unknown data type: ${type}`);
-         return false;
+
+        return true; // Indicate success
+
     } catch (error) {
         console.error(`Error updating Firestore for id ${id}:`, error);
         setError(`Failed to save changes for ${id}. Details: ${error.message}`);
         return false;
     }
-  }, [setError]);
+  }, [setError, selectedFactoryId]); // Added selectedFactoryId dependency
 
+  // --- NEW: Add Responsibility ---
+  const addResponsibility = useCallback(async (roleId, type, category = null) => {
+      const db = getDbInstance();
+      if (!isUserAdmin || !db || !selectedFactoryId || !roleId) {
+          setError("Permission denied, missing IDs, or database error. Cannot add responsibility.");
+          return;
+      }
+      setError(null);
+
+      const newItemText = "New responsibility item"; // Default text
+      let updatePayload = {};
+      let updateFieldPath = '';
+
+      try {
+          const roleDocRef = doc(db, 'factories', selectedFactoryId, 'roles', roleId);
+
+          if (type === 'basic') {
+              updateFieldPath = 'responsibilities';
+              updatePayload[updateFieldPath] = arrayUnion(newItemText);
+          } else if (type === 'detailed' && category) {
+              updateFieldPath = `detailedResponsibilities.${category}`;
+              // Need to ensure the category array exists first, or handle differently
+              // Using arrayUnion might create the field if it doesn't exist, but behavior might vary.
+              // Safer: Fetch, check/create category array, then update.
+              const roleSnap = await getDoc(roleDocRef);
+              if (!roleSnap.exists()) throw new Error('Role not found');
+              const currentData = roleSnap.data();
+              const currentDetailed = currentData.detailedResponsibilities || {};
+              const currentCategoryArray = Array.isArray(currentDetailed[category]) ? currentDetailed[category] : [];
+              
+              updatePayload[updateFieldPath] = [...currentCategoryArray, newItemText]; // Overwrite with new array including added item
+              
+          } else {
+              throw new Error('Invalid type or missing category for addResponsibility');
+          }
+
+          updatePayload.updatedAt = new Date();
+          await updateDoc(roleDocRef, updatePayload); 
+          console.log(`Added responsibility to role ${roleId}, field ${updateFieldPath}`);
+
+          // Update local state
+          setFactoryRoles(prev => {
+              const updatedRoles = { ...prev };
+              if (!updatedRoles[roleId]) return prev; // Safety check
+
+              if (type === 'basic') {
+                  const currentResponsibilities = Array.isArray(updatedRoles[roleId].responsibilities) ? updatedRoles[roleId].responsibilities : [];
+                  updatedRoles[roleId] = { ...updatedRoles[roleId], responsibilities: [...currentResponsibilities, newItemText] };
+              } else if (type === 'detailed' && category) {
+                   const currentDetailed = updatedRoles[roleId].detailedResponsibilities || {};
+                   const currentCategoryArray = Array.isArray(currentDetailed[category]) ? currentDetailed[category] : [];
+                   updatedRoles[roleId] = { 
+                       ...updatedRoles[roleId],
+                       detailedResponsibilities: {
+                           ...currentDetailed,
+                           [category]: [...currentCategoryArray, newItemText]
+                       } 
+                   };
+              }
+              return updatedRoles;
+          });
+
+      } catch (err) {
+          console.error("Error adding responsibility:", err);
+          setError(`Failed to add responsibility. Error: ${err.message}`);
+      }
+  }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles]); // Removed firebase.firestore.FieldValue
+
+  // --- NEW: Delete Responsibility ---
+  const deleteResponsibility = useCallback(async (roleId, type, category = null, itemToRemove) => {
+      const db = getDbInstance();
+      if (!isUserAdmin || !db || !selectedFactoryId || !roleId || itemToRemove === undefined) {
+          setError("Permission denied, missing IDs/item, or database error. Cannot delete responsibility.");
+          return;
+      }
+      setError(null);
+
+      let updatePayload = {};
+      let updateFieldPath = '';
+
+      try {
+          const roleDocRef = doc(db, 'factories', selectedFactoryId, 'roles', roleId);
+
+          if (type === 'basic') {
+              updateFieldPath = 'responsibilities';
+              updatePayload[updateFieldPath] = arrayRemove(itemToRemove);
+          } else if (type === 'detailed' && category) {
+              updateFieldPath = `detailedResponsibilities.${category}`;
+              // arrayRemove works on nested fields
+              updatePayload[updateFieldPath] = arrayRemove(itemToRemove);
+          } else {
+              throw new Error('Invalid type or missing category for deleteResponsibility');
+          }
+
+          updatePayload.updatedAt = new Date();
+          await updateDoc(roleDocRef, updatePayload);
+          console.log(`Removed responsibility from role ${roleId}, field ${updateFieldPath}`);
+
+          // Update local state
+          setFactoryRoles(prev => {
+              const updatedRoles = { ...prev };
+              if (!updatedRoles[roleId]) return prev;
+
+              if (type === 'basic') {
+                  const currentResponsibilities = Array.isArray(updatedRoles[roleId].responsibilities) ? updatedRoles[roleId].responsibilities : [];
+                  updatedRoles[roleId] = { ...updatedRoles[roleId], responsibilities: currentResponsibilities.filter(item => item !== itemToRemove) };
+              } else if (type === 'detailed' && category) {
+                  const currentDetailed = updatedRoles[roleId].detailedResponsibilities || {};
+                  const currentCategoryArray = Array.isArray(currentDetailed[category]) ? currentDetailed[category] : [];
+                   updatedRoles[roleId] = { 
+                       ...updatedRoles[roleId],
+                       detailedResponsibilities: {
+                           ...currentDetailed,
+                           [category]: currentCategoryArray.filter(item => item !== itemToRemove)
+                       } 
+                   };
+              }
+              return updatedRoles;
+          });
+
+      } catch (err) {
+          console.error("Error deleting responsibility:", err);
+          setError(`Failed to delete responsibility. Error: ${err.message}`);
+      }
+  }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles]); // Removed firebase.firestore.FieldValue
+
+  // --- NEW: Add Personnel ---
   const addPersonnel = useCallback(async () => {
-    const db = getDbInstance();
-    if (!isUserAdmin || !db) {
-      setError("Permission denied or database connection error. Cannot add personnel.");
-      return;
-    }
-    setError(null);
-    const newPerson = {
-      name: 'New Teammate',
-      experience: 0,
-      assignedRole: null,
-      skills: [],
-      notes: '',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    try {
-      const docRef = await addDoc(collection(db, 'personnel'), newPerson);
-      console.log("New person added with ID:", docRef.id);
-      const addedPersonData = { id: docRef.id, ...newPerson };
-      setPersonnel(prev => [...prev, addedPersonData]);
-    } catch (err) {
-      console.error("Error adding personnel:", err);
-      setError("Failed to add new personnel to the database.");
-    }
+      const db = getDbInstance();
+      if (!isUserAdmin || !db) {
+          setError("Permission denied or database error. Cannot add personnel.");
+          return;
+      }
+      setError(null);
+
+      const newPersonData = {
+          name: "New Person",
+          experience: 0, // Default experience
+          skills: [],
+          notes: "",
+          assignedFactoryId: null, // Not assigned initially
+          assignedRoleKey: null,   // Not assigned initially
+          createdAt: new Date(),
+          updatedAt: new Date()
+      };
+
+      try {
+          const docRef = await addDoc(collection(db, 'personnel'), newPersonData);
+          console.log("New personnel added with ID:", docRef.id);
+
+          // Update local state optimistically
+          setPersonnel(prev => [...prev, { id: docRef.id, ...newPersonData }]);
+
+      } catch (err) {
+          console.error("Error adding personnel:", err);
+          setError("Failed to add new personnel to the database.");
+      }
   }, [isUserAdmin, setError, setPersonnel]);
 
+  // --- NEW: Delete Personnel ---
   const deletePersonnel = useCallback(async (personId) => {
-    const db = getDbInstance();
-    if (!isUserAdmin || !db || !personId) {
-      setError("Permission denied, invalid ID, or database connection error. Cannot delete personnel.");
-      return;
-    }
-    setError(null);
-    try {
-      await deleteDoc(doc(db, 'personnel', personId));
-      console.log("Deleted person with ID:", personId);
-      setPersonnel(prev => prev.filter(p => p.id !== personId));
-    } catch (err) {
-      console.error("Error deleting personnel:", err);
-      setError(`Failed to delete personnel ${personId} from the database.`);
-    }
-  }, [isUserAdmin, setError, setPersonnel]);
+      const db = getDbInstance();
+      if (!isUserAdmin || !db || !personId) {
+          setError("Permission denied, invalid ID, or database error. Cannot delete personnel.");
+          return;
+      }
+
+      const personToDelete = personnel.find(p => p.id === personId);
+      if (!personToDelete) {
+          setError("Cannot delete: Person not found.");
+          return;
+      }
+
+      // Confirmation
+      const confirmation = window.confirm(
+          `Are you sure you want to permanently delete "${personToDelete.name || personId}"? ` +
+          `This action cannot be undone.`
+      );
+
+      if (!confirmation) {
+          return; // User cancelled
+      }
+
+      setError(null);
+      try {
+          const personDocRef = doc(db, 'personnel', personId);
+          await deleteDoc(personDocRef);
+          console.log("Deleted personnel with ID:", personId);
+
+          // Update local state
+          setPersonnel(prev => prev.filter(p => p.id !== personId));
+
+      } catch (err) {
+          console.error("Error deleting personnel:", err);
+          setError(`Failed to delete ${personToDelete.name || personId}. Error: ${err.message}`);
+      }
+  }, [isUserAdmin, personnel, setError, setPersonnel]);
 
   const saveTimelineChanges = useCallback(async () => {
     const db = getDbInstance();
@@ -758,6 +1164,98 @@ export default function Dashboard() {
       return false;
     }
   }, [isUserAdmin, budgetData, setError]);
+
+  // --- NEW: Add Role --- 
+  const addRole = useCallback(async () => {
+    const db = getDbInstance();
+    if (!isUserAdmin || !db || !selectedFactoryId) {
+      setError("Permission denied, no factory selected, or database error. Cannot add role.");
+      return;
+    }
+    setError(null);
+
+    // Generate a unique key/ID for the new role (using Firestore\'s auto-ID)
+    const newRoleData = {
+        title: "New Role",
+        responsibilities: [],
+        detailedResponsibilities: {},
+        kpis: [],
+        skills: [],
+        nextRoles: [],
+        color: colors.gray, // Default color
+        salary: "",
+        department: "",
+        createdAt: new Date()
+        // Add icon handling later if needed
+    };
+
+    try {
+        const rolesCollectionRef = collection(db, 'factories', selectedFactoryId, 'roles');
+        const docRef = await addDoc(rolesCollectionRef, newRoleData);
+        console.log("New role added with ID:", docRef.id);
+
+        // Update local state optimistically
+        setFactoryRoles(prev => ({
+            ...prev,
+            [docRef.id]: { id: docRef.id, ...newRoleData } 
+        }));
+
+    } catch (err) {
+        console.error("Error adding role:", err);
+        setError(`Failed to add new role to factory ${selectedFactoryId}.`);
+    }
+  }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles, colors.gray]);
+
+  // --- NEW: Delete Role --- 
+  const deleteRole = useCallback(async (roleIdToDelete) => {
+    const db = getDbInstance();
+    if (!isUserAdmin || !db || !selectedFactoryId || !roleIdToDelete) {
+      setError("Permission denied, invalid role/factory ID, or database error. Cannot delete role.");
+      return;
+    }
+
+    // Check if any personnel are assigned to this role in this factory
+    const assignedPersonnelCount = personnel.filter(p => p.assignedFactoryId === selectedFactoryId && p.assignedRoleKey === roleIdToDelete).length;
+
+    if (assignedPersonnelCount > 0) {
+      setError(`Cannot delete role: ${assignedPersonnelCount} personnel still assigned. Please reassign them first.`);
+      return;
+    }
+
+    const roleToDelete = factoryRoles[roleIdToDelete];
+    if (!roleToDelete) {
+      setError("Cannot delete: Role not found in current factory data.");
+      return;
+    }
+
+    // Confirmation
+    const confirmation = window.confirm(
+      `Are you sure you want to permanently delete the role "${roleToDelete.title || roleIdToDelete}"? ` +
+      `This action cannot be undone.`
+    );
+
+    if (!confirmation) {
+      return; // User cancelled
+    }
+
+    setError(null);
+    try {
+        const roleDocRef = doc(db, 'factories', selectedFactoryId, 'roles', roleIdToDelete);
+        await deleteDoc(roleDocRef);
+        console.log("Deleted role with ID:", roleIdToDelete, "from factory", selectedFactoryId);
+
+        // Update local state
+        setFactoryRoles(prev => {
+            const newState = { ...prev };
+            delete newState[roleIdToDelete];
+            return newState;
+        });
+
+    } catch (err) {
+        console.error("Error deleting role:", err);
+        setError(`Failed to delete role ${roleToDelete.title || roleIdToDelete}. Error: ${err.message}`);
+    }
+  }, [isUserAdmin, selectedFactoryId, personnel, factoryRoles, setError, setFactoryRoles]);
 
   const renderContent = () => {
     if (loadingAuth) {
@@ -800,9 +1298,10 @@ export default function Dashboard() {
            <div className="structure-tab">
              <div className="hierarchy-column">
                <OrgStructure 
-                          roles={roles} 
-                          personnel={personnel}
+                          roles={factoryRoles} 
+                          personnel={personnel.filter(p => p.assignedFactoryId === selectedFactoryId && p.assignedRoleKey)}
                           isUserAdmin={isUserAdmin}
+                          allRoles={factoryRoles} 
                           handleDropOnRole={handleDropOnRole}
                           handleDragEnter={handleDragEnter}
                           handleDragLeave={handleDragLeave}
@@ -815,14 +1314,21 @@ export default function Dashboard() {
                           handleKeyDown={handleKeyDown}
                           handleTextChange={handleTextChange}
                           unassignPerson={handleDropOnAvailable}
-                          allRoles={roles} 
+                          addRole={addRole}
+                          deleteRole={deleteRole}
+                          // --- Pass Responsibility Handlers ---
+                          addResponsibility={addResponsibility}
+                          deleteResponsibility={deleteResponsibility}
+                          // --- Pass Shared Data ---
+                          sharedRolesData={sharedRolesData}
+                          sharedPersonnel={personnel.filter(p => p.assignedFactoryId === '_shared')}
                />
              </div>
              <AvailablePersonnel
-                        personnel={personnel}
+                        personnel={personnel.filter(p => !p.assignedRoleKey)}
                         setPersonnel={setPersonnel} 
                         setError={setError}         
-                        roles={roles}             
+                        roles={factoryRoles}             
                         isUserAdmin={isUserAdmin}
                         handleDragStart={handleDragStart}
                         handleDragEnd={handleDragEnd}
@@ -872,11 +1378,19 @@ export default function Dashboard() {
         case 'analysis':
           return (roles && Array.isArray(personnel)) ? (
              <WorkloadAnalysis 
-                 roles={roles} 
+                 roles={factoryRoles} 
                  personnel={personnel} 
                  isUserAdmin={isUserAdmin}
              />
           ) : <div className="loading-container">Loading analysis data...</div>;
+        case 'presentation':
+          return (
+            <PresentationView 
+              factories={factories}
+              allPersonnel={personnel}
+              allRolesData={allRolesData}
+            />
+          );
        default:
          return <div className="tab-content">Select a tab</div>; 
     }
@@ -918,10 +1432,66 @@ export default function Dashboard() {
             >
               <BarChart size={18} /> Analysis
             </button>
+            <button 
+              className={`tab-button ${activeTab === 'presentation' ? 'active' : ''}`}
+              onClick={() => setActiveTab('presentation')}
+            >
+              <Home size={18} /> Overview
+            </button>
           </nav>
       )}
 
       <main className={`main-content ${!user ? 'logged-out' : ''}`}>
+         {/* Render Factory Selector only if logged in and factories exist */}
+        {user && (
+            <div className="factory-selector-container" style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', padding: '10px', background: '#f9f9f9', borderRadius: '5px' }}>
+                <label htmlFor="factorySelect" style={{ marginRight: '10px'}}>Select Focus Factory: </label>
+                <select
+                    id="factorySelect"
+                    value={selectedFactoryId}
+                    onChange={(e) => {
+                        console.log("Factory selected:", e.target.value);
+                        setSelectedFactoryId(e.target.value);
+                    }}
+                    disabled={factories.length === 0} // Disable if no factories
+                    style={{ flexGrow: 1, marginRight: '10px' }}
+                >
+                    {factories.length === 0 && <option>No Factories Available</option>}
+                    {/* Filter out '_shared' factory from dropdown */}
+                    {factories.filter(f => f.id !== '_shared').map(factory => (
+                        <option key={factory.id} value={factory.id}>
+                            {factory.name || factory.id}
+                        </option>
+                    ))}
+                    {/* Indicate if only shared exists */}
+                    {factories.length > 0 && factories.every(f => f.id === '_shared') && (
+                        <option disabled>Configure Non-Shared Factories</option>
+                    )}
+                </select>
+                 {/* --- Add Factory Button --- */}
+                {isUserAdmin && (
+                    <button
+                        onClick={addFactory}
+                        className="button-primary button-small" // Add styles as needed
+                        title="Add a new focus factory"
+                        style={{ whiteSpace: 'nowrap', marginRight: '10px' }} // Added margin
+                    >
+                        + Add Factory
+                    </button>
+                )}
+                 {/* --- Delete Factory Button --- */}
+                {isUserAdmin && selectedFactoryId && factories.length > 0 && (
+                     <button
+                         onClick={deleteFactory}
+                         className="button-danger button-small" // Add styles as needed
+                         title={`Delete the selected factory (${factories.find(f=>f.id===selectedFactoryId)?.name || selectedFactoryId})`}
+                         style={{ whiteSpace: 'nowrap' }}
+                     >
+                         <Trash2 size={14} style={{ marginRight: '4px' }} /> Delete Factory
+                     </button>
+                )}
+            </div>
+        )}
          {renderContent()}
       </main>
     </div>

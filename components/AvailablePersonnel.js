@@ -34,7 +34,7 @@ const AvailablePersonnel = ({
   const [personToDelete, setPersonToDelete] = useState(null);
 
   // Ensure personnel is an array before filtering
-  const available = Array.isArray(personnel) ? personnel.filter(p => !p.assignedRole) : [];
+  const available = Array.isArray(personnel) ? personnel.filter(p => !p.assignedRoleKey) : [];
 
   // Internal handler to trigger the addPersonnel prop from page.js
   const handleAddPersonClick = () => {
@@ -152,8 +152,13 @@ const AvailablePersonnel = ({
           <h3>Available Personnel</h3>
           <div className="header-actions">
              {isUserAdmin && (
-               <button onClick={handleAddPersonClick} className="add-person-button" title="Add New Person">
-                 <UserPlus size={18} /> Add
+               <button 
+                    onClick={addPersonnel} // Directly call the prop function
+                    className="add-person-button button-secondary button-small" 
+                    title="Add New Person"
+                    style={{ display: 'flex', alignItems: 'center' }}
+                >
+                 <UserPlus size={16} style={{ marginRight: '4px' }}/> Add
                </button>
              )}
              <button onClick={handleExportPersonnel} className="export-button" title="Export Personnel List">
@@ -197,9 +202,13 @@ const AvailablePersonnel = ({
                    </div>
                    {isUserAdmin && (
                      <button
-                       onClick={() => handleDeletePersonClick(person)} // Use internal handler
-                       className="delete-person-button"
+                       onClick={(e) => { 
+                         e.stopPropagation(); // Prevent drag/other events
+                         deletePersonnel(person.id); // Directly call prop with ID
+                       }}
+                       className="button-icon-danger button-tiny"
                        title="Delete Person Permanently"
+                       style={{ marginLeft: 'auto' }} // Push button to the right
                      >
                        <Trash2 size={14} />
                      </button>
