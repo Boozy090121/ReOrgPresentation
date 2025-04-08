@@ -81,10 +81,49 @@ export default function Dashboard() {
   
   useEffect(() => {
     // Effect 1: Load factories on auth ready
-    if (isClient) { // <--- Add isClient guard
+    if (isClient) { // <--- Guard remains
       if (!loadingAuth && user) {
         console.log("Client: Auth resolved, loading factories...");
-        // loadFactories(); // DIAGNOSTIC: Keep call commented out
+        // --- Start: Inline factory loading logic ---
+        const dbInstance = getDbInstance(); // Ensure db is available here
+        if (!dbInstance) {
+            console.error("Effect 1: DB not available");
+            setError("DB connection lost. Cannot load factories.");
+            return; // Exit if no db
+        }
+        const fetchFactories = async () => {
+            try {
+                const querySnapshot = await getDocs(collection(dbInstance, 'factories'));
+                const loadedFactories = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log("Factories loaded inline:", loadedFactories.length);
+                if (loadedFactories.length > 0) {
+                    setFactories(loadedFactories);
+                    // Set default selection, excluding '_shared' if possible
+                    const currentSelectedId = selectedFactoryId; // Capture current selection *before* potential update
+                    const nonSharedFactories = loadedFactories.filter(f => f.id !== '_shared');
+                    if (!currentSelectedId && nonSharedFactories.length > 0) {
+                        setSelectedFactoryId(nonSharedFactories[0].id); // Update selection state
+                        console.log("Default factory set inline:", nonSharedFactories[0].id);
+                    } else if (!currentSelectedId && loadedFactories.length > 0) {
+                        setSelectedFactoryId(''); 
+                        console.log("Only shared factory found, no default selection inline.");
+                    }
+                } else {
+                     setFactories([]);
+                     setSelectedFactoryId('');
+                     console.log("No factories found inline.");
+                     setError("No focus factories found. Please configure factories in the database.");
+                }
+            } catch (err) {
+                console.error("Error loading factories inline:", err);
+                setError(prev => (prev ? prev + "\nFailed to load factories." : "Failed to load factories."));
+                setFactories([]);
+                setSelectedFactoryId('');
+            }
+        };
+        fetchFactories();
+        // --- End: Inline factory loading logic ---
+
       } else if (!loadingAuth && !user) {
          // Clear state if user logs out
          console.log("Client: Auth resolved, no user. Clearing state.");
@@ -101,7 +140,8 @@ export default function Dashboard() {
          setError(null);
       }
     } // <--- End isClient guard
-  }, [isClient, loadingAuth, user, loadFactories]); // DIAGNOSTIC: Add loadFactories back to dependencies
+    // Only depend on variables that control *when* to run, not the functions themselves
+  }, [isClient, loadingAuth, user, setError, setSelectedFactoryId]); 
 
   /* --- Start comment block for Effect 2 and 3 ---
   useEffect(() => {
@@ -203,45 +243,6 @@ export default function Dashboard() {
         return initialBudgetData;
     }
   }, [setError]);
-
-  const loadFactories = useCallback(async () => {
-      const db = getDbInstance();
-      if (!db) {
-          console.error("Load Factories: DB not available");
-          setError("DB connection lost. Cannot load factories.");
-          return [];
-      }
-      try {
-          const querySnapshot = await getDocs(collection(db, 'factories'));
-          const loadedFactories = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          console.log("Factories loaded:", loadedFactories.length);
-          if (loadedFactories.length > 0) {
-              setFactories(loadedFactories);
-              // Set default selection, excluding '_shared' if possible
-              const nonSharedFactories = loadedFactories.filter(f => f.id !== '_shared');
-              if (!selectedFactoryId && nonSharedFactories.length > 0) {
-                  setSelectedFactoryId(nonSharedFactories[0].id);
-                  console.log("Default factory set:", nonSharedFactories[0].id);
-              } else if (!selectedFactoryId && loadedFactories.length > 0) {
-                   // If only '_shared' exists, don't select anything by default
-                   setSelectedFactoryId(''); 
-                   console.log("Only shared factory found, no default selection.");
-              }
-          } else {
-               setFactories([]);
-               setSelectedFactoryId('');
-               console.log("No factories found.");
-               setError("No focus factories found. Please configure factories in the database.");
-          }
-          return loadedFactories;
-      } catch (err) {
-          console.error("Error loading factories:", err);
-          setError(prev => (prev ? prev + "\nFailed to load factories." : "Failed to load factories."));
-          setFactories([]);
-          setSelectedFactoryId('');
-          return [];
-      }
-  }, [setError, selectedFactoryId]);
 
   const loadRoles = useCallback(async (factoryId) => {
       if (!factoryId) {
