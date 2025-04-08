@@ -42,10 +42,6 @@ const OrgStructure = ({
   // Helper function to render a role card with all necessary props
   const renderRoleCard = (roleKey, roleData, personnelList, isShared = false) => {
     if (!roleData) return null;
-
-    // --- DIAGNOSTIC: Comment out RoleCard rendering ---
-    return <div key={roleKey} style={{ border: '1px dashed #ccc', padding: '10px', margin: '5px 0' }}>Role Placeholder: {roleData?.title || roleKey}</div>;
-    /*
     const assignedPersonnel = Array.isArray(personnelList) ? personnelList.filter(p => p.assignedRoleKey === roleKey) : [];
     return (
       <RoleCard
@@ -75,9 +71,11 @@ const OrgStructure = ({
         deleteResponsibility={deleteResponsibility}
       />
     );
-    */
   };
 
+  // --- DIAGNOSTIC: Simplify return value ---
+  return <div>OrgStructure Build Test</div>;
+  /*
   return (
     <div className="org-structure-container">
       <div className="org-structure-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
@@ -123,6 +121,7 @@ const OrgStructure = ({
       )}
     </div>
   );
+  */
 };
 
 export default OrgStructure; 
