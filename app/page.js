@@ -46,12 +46,16 @@ export default function Dashboard() {
   const db = getDbInstance();
 
   // Use the Auth hook
-  const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
-  const isClient = useIsClient(); // DIAGNOSTIC: Restore useIsClient
-  // const isClient = true; // DIAGNOSTIC: Remove hardcoded value
+  const { user, isUserAdmin, loadingAuth, signOut } = useAuth(); // DIAGNOSTIC: Re-enable useAuth
+  // Provide dummy values for diagnostics - COMMENT OUT
+  // const user = { email: 'test@example.com' }; // Simulate logged-in user
+  // const isUserAdmin = true; // Simulate admin
+  // const loadingAuth = false; // Assume auth is done
+  // const signOut = () => console.warn("Sign out disabled (diagnostic)"); // Dummy signOut
 
-  // --- Conditionally instantiate the inline editing hook ---
-  // Use dummy values during SSR/build when isClient is false
+  const isClient = useIsClient(); // DIAGNOSTIC: Restore useIsClient
+
+  // --- Inline Editing Setup ---
   const initialEditingState = { 
       editingId: null, 
       editText: '', 
@@ -61,10 +65,372 @@ export default function Dashboard() {
       handleKeyDown: () => { console.warn("Edit attempted before client mount"); }
   };
 
-  const editingLogic = isClient 
-      ? useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError) 
-      : initialEditingState;
-  // const editingLogic = initialEditingState; // DIAGNOSTIC: Force initial state, comment out useInlineEditing usage
+  // --- Define REAL Callbacks (Unconditionally) ---
+  const realGetOriginalText = useCallback((id) => {
+    if (!id || typeof id !== 'string') {
+        console.warn("getOriginalText called with invalid id:", id);
+        return '';
+    }
+    
+    const parts = id.split('-');
+    if (parts.length < 3) {
+         console.warn("getOriginalText: Invalid ID format", id);
+         return '';
+    }
+    const type = parts[0];
+
+    try {
+        if (type === 'timeline') {
+            if (parts.length < 3) return '';
+            const phaseIndex = parseInt(parts[1], 10);
+            const field = parts[2];
+            
+            if (!Array.isArray(timeline) || isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= timeline.length || !field) {
+                console.warn(`getOriginalText(timeline): Invalid index or data for id ${id}`);
+                return '';
+            }
+            const phase = timeline[phaseIndex];
+            if (!phase) {
+                 console.warn(`getOriginalText(timeline): Phase at index ${phaseIndex} is missing for id ${id}`);
+                 return '';
+            }
+
+            if (field === 'phase') return String(phase.phase ?? '');
+            if (field === 'timeframe') return String(phase.timeframe ?? '');
+            if (field === 'activity') {
+                if (parts.length < 4) return '';
+                const activityIndex = parseInt(parts[3], 10);
+                if (!Array.isArray(phase.activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= phase.activities.length) {
+                     console.warn(`getOriginalText(timeline): Invalid activity index or data for id ${id}`);
+                     return '';
+                }
+                return String(phase.activities[activityIndex] ?? '');
+            }
+        } else if (type === 'budget') {
+            if (parts.length < 3) return '';
+            const factoryId = parts[1];
+            const categoryKey = parts[2];
+            
+            if (!budgetData || typeof budgetData !== 'object' || !factoryId || !budgetData[factoryId]) {
+                console.warn(`getOriginalText(budget): Invalid factoryId or budgetData for id ${id}`);
+                return '';
+            }
+            const factory = budgetData[factoryId];
+            if (!factory) return '';
+
+            if (categoryKey === 'factoryName') return String(factory.name ?? '');
+            if (categoryKey === 'productionVolume') return String(factory.productionVolume ?? '');
+
+            if (categoryKey === 'personnelCosts') {
+                 if (parts.length < 6) return '';
+                 const personnelCategoryKey = parts[3];
+                 const roleIndex = parseInt(parts[4], 10);
+                 const roleField = parts[5];
+
+                 if (!factory.personnelCosts || typeof factory.personnelCosts !== 'object' || 
+                     !factory.personnelCosts[personnelCategoryKey] || 
+                     !Array.isArray(factory.personnelCosts[personnelCategoryKey].roles) ||
+                     isNaN(roleIndex) || roleIndex < 0 || roleIndex >= factory.personnelCosts[personnelCategoryKey].roles.length ||
+                     !roleField) {
+                         console.warn(`getOriginalText(budget): Invalid personnel cost path for id ${id}`);
+                         return '';
+                     }
+                 
+                 const role = factory.personnelCosts[personnelCategoryKey].roles[roleIndex];
+                 if (!role) {
+                      console.warn(`getOriginalText(budget): Role at index ${roleIndex} missing for id ${id}`);
+                      return '';
+                 }
+                 return String(role[roleField] ?? ''); 
+
+            } else if (categoryKey === 'operationalExpenses') {
+                 if (parts.length < 5) return '';
+                 const opExIndex = parseInt(parts[3], 10);
+                 const opExField = parts[4];
+                  if (!Array.isArray(factory.operationalExpenses) || 
+                      isNaN(opExIndex) || opExIndex < 0 || opExIndex >= factory.operationalExpenses.length || 
+                      !opExField) {
+                      console.warn(`getOriginalText(budget): Invalid operational expense path for id ${id}`);
+                      return '';
+                  }
+                  const item = factory.operationalExpenses[opExIndex];
+                  if (!item) {
+                      console.warn(`getOriginalText(budget): OpEx item at index ${opExIndex} missing for id ${id}`);
+                      return '';
+                  }
+                  return String(item[opExField] ?? '');
+            }
+        } else if (type === 'personnel') {
+            if (parts.length < 3) return '';
+            const personId = parts[1];
+            const field = parts[2];
+            if (!Array.isArray(personnel) || !personId || !field) {
+                 console.warn(`getOriginalText(personnel): Invalid id format or data for id ${id}`);
+                 return '';
+            }
+            const person = personnel.find(p => p && p.id === personId);
+            if (!person) {
+                 console.warn(`getOriginalText(personnel): Person with id ${personId} not found.`);
+                 return '';
+            }
+            if (field === 'skills' && Array.isArray(person.skills)) {
+                return person.skills.join(', ');
+            }
+            return String(person[field] ?? '');
+        }
+    } catch (error) {
+        console.error("Error in getOriginalText for id:", id, error);
+        return '';
+    }
+    
+    console.warn("getOriginalText: Unrecognized ID format or type:", id);
+    return '';
+  }, [personnel, factoryRoles, timeline, budgetData]);
+
+  const realUpdateFirestoreData = useCallback(async (id, value) => {
+    const db = getDbInstance();
+    if (!id || typeof id !== 'string' || !db || !selectedFactoryId) {
+        if (!db) setError("Database error. Cannot save changes.");
+        else setError("Invalid data reference or factory selection. Cannot save changes.");
+        return false;
+    }
+
+    const parts = id.split('-');
+    if (parts.length < 3) {
+        setError("Invalid data structure for saving (ID format).");
+        console.error("Invalid ID format for updateFirestoreData:", id);
+        return false;
+    }
+    const type = parts[0];
+    const docId = parts[1]; // Role Key or Person ID
+    const field = parts[2]; // Top-level field or category
+
+    try {
+        let docRef;
+        let updatePayload = {};
+
+        if (type === 'personnel') {
+            // Handle personnel updates (as before)
+            docRef = doc(db, 'personnel', docId);
+            let updateValue = value;
+            if (field === 'skills' && typeof value === 'string') {
+                updateValue = value.split(',').map(s => s.trim()).filter(Boolean);
+            } else if (field === 'experience') {
+                const numValue = Number(value);
+                updateValue = isNaN(numValue) ? 0 : numValue;
+            }
+            updatePayload = { [field]: updateValue, updatedAt: new Date() };
+            await updateDoc(docRef, updatePayload);
+            console.log(`Updated personnel ${docId} field ${field}`);
+
+        } else if (type === 'role') {
+            // Handle role updates
+            docRef = doc(db, 'factories', selectedFactoryId, 'roles', docId);
+
+            if (field === 'title') { // Simple field update
+                 updatePayload = { title: value, updatedAt: new Date() };
+                 await updateDoc(docRef, updatePayload);
+                 console.log(`Updated role ${docId} field title`);
+
+            } else if (field === 'responsibility') { // Basic responsibility item update
+                 if (parts.length < 4) throw new Error('Invalid role responsibility ID');
+                 const index = parseInt(parts[3], 10);
+                 if (isNaN(index)) throw new Error('Invalid index in role responsibility ID');
+
+                 // Need to fetch current array, modify, and update the whole array
+                 const roleSnap = await getDoc(docRef);
+                 if (!roleSnap.exists()) throw new Error('Role not found for update');
+                 const currentData = roleSnap.data();
+                 const currentResponsibilities = Array.isArray(currentData.responsibilities) ? [...currentData.responsibilities] : [];
+                 if (index >= 0 && index < currentResponsibilities.length) {
+                     currentResponsibilities[index] = value; // Update the item at index
+                     updatePayload = { responsibilities: currentResponsibilities, updatedAt: new Date() };
+                     await updateDoc(docRef, updatePayload);
+                     console.log(`Updated role ${docId} responsibility at index ${index}`);
+                 } else {
+                     throw new Error(`Invalid index ${index} for responsibilities array`);
+                 }
+
+            } else if (field === 'detailedResponsibility') { // Detailed responsibility item update
+                 if (parts.length < 5) throw new Error('Invalid role detailed responsibility ID');
+                 const category = parts[3];
+                 const index = parseInt(parts[4], 10);
+                 if (isNaN(index) || !category) throw new Error('Invalid category/index in role detailed responsibility ID');
+
+                 const roleSnap = await getDoc(docRef);
+                 if (!roleSnap.exists()) throw new Error('Role not found for update');
+                 const currentData = roleSnap.data();
+                 const currentDetailed = currentData.detailedResponsibilities ? JSON.parse(JSON.stringify(currentData.detailedResponsibilities)) : {};
+                 
+                 if (currentDetailed[category] && Array.isArray(currentDetailed[category]) && index >= 0 && index < currentDetailed[category].length) {
+                     currentDetailed[category][index] = value; // Update item at index
+                     // Use dot notation for updating nested map fields
+                     updatePayload[`detailedResponsibilities.${category}`] = currentDetailed[category]; 
+                     updatePayload.updatedAt = new Date();
+                     await updateDoc(docRef, updatePayload); 
+                     console.log(`Updated role ${docId} detailed responsibility in category ${category} at index ${index}`);
+                 } else {
+                    throw new Error(`Invalid category ${category} or index ${index} for detailed responsibilities array`);
+                 }
+            } else {
+                 // Handle other simple role fields if needed (e.g., salary, department)
+                 // updatePayload = { [field]: value, updatedAt: new Date() }; 
+                 // await updateDoc(docRef, updatePayload);
+                 // console.log(`Updated role ${docId} field ${field}`);
+                 console.warn(`Unhandled role field update for: ${field}`);
+                 return false; // Indicate unhandled update
+            }
+        } 
+        // Add handling for timeline, budget if they use this same update function
+        // else if (type === 'timeline') { ... }
+        // else if (type === 'budget') { ... }
+        
+        else {
+            console.warn("updateFirestoreData: Unrecognized type:", type);
+            setError(`Cannot save changes for unknown data type: ${type}`);
+            return false;
+        }
+
+        return true; // Indicate success
+
+    } catch (error) {
+        console.error(`Error updating Firestore for id ${id}:`, error);
+        setError(`Failed to save changes for ${id}. Details: ${error.message}`);
+        return false;
+    }
+  }, [setError, selectedFactoryId]);
+
+  const realUpdateLocalState = useCallback((id, newValue) => {
+    if (!id || typeof id !== 'string') {
+        console.warn("updateLocalState called with invalid id:", id);
+        return;
+    }
+
+    const parts = id.split('-');
+    if (parts.length < 3) {
+         console.warn("updateLocalState: Invalid ID format", id);
+         return;
+    }
+    const type = parts[0];
+
+    try {
+        if (type === 'timeline') {
+            setTimeline(prev => {
+                if (!Array.isArray(prev)) return prev;
+                const newTimeline = JSON.parse(JSON.stringify(prev));
+                if (parts.length < 3) return prev;
+                const phaseIndex = parseInt(parts[1], 10);
+                const field = parts[2];
+                
+                if (isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= newTimeline.length || !field || !newTimeline[phaseIndex]) return prev;
+
+                if (field === 'phase') newTimeline[phaseIndex].phase = newValue;
+                else if (field === 'timeframe') newTimeline[phaseIndex].timeframe = newValue;
+                else if (field === 'activity') {
+                    if (parts.length < 4) return prev;
+                    const activityIndex = parseInt(parts[3], 10);
+                    if (!Array.isArray(newTimeline[phaseIndex].activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= newTimeline[phaseIndex].activities.length) return prev;
+                    newTimeline[phaseIndex].activities[activityIndex] = newValue;
+                }
+                return newTimeline;
+            });
+        } else if (type === 'budget') {
+            setBudgetData(prev => {
+                if (!prev || typeof prev !== 'object') return prev;
+                const newBudgetData = JSON.parse(JSON.stringify(prev));
+                if (parts.length < 3) return prev;
+                const factoryId = parts[1];
+                const categoryKey = parts[2];
+                
+                if (!factoryId || !newBudgetData[factoryId]) return prev;
+
+                if (categoryKey === 'factoryName') {
+                    newBudgetData[factoryId].name = newValue;
+                } else if (categoryKey === 'productionVolume') {
+                    const numValue = Number(newValue);
+                    newBudgetData[factoryId].productionVolume = isNaN(numValue) ? 0 : numValue;
+                } else if (categoryKey === 'personnelCosts') {
+                     if (parts.length < 6) return prev;
+                    const personnelCategoryKey = parts[3];
+                    const roleIndex = parseInt(parts[4], 10);
+                    const roleField = parts[5];
+                    if (!newBudgetData[factoryId].personnelCosts || typeof newBudgetData[factoryId].personnelCosts !== 'object' || 
+                        !newBudgetData[factoryId].personnelCosts[personnelCategoryKey] || 
+                        !Array.isArray(newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles) ||
+                        isNaN(roleIndex) || roleIndex < 0 || roleIndex >= newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles.length ||
+                        !roleField || !newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex]) return prev;
+                    
+                    const currentRole = newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex];
+                    if (roleField === 'count') {
+                         const numValue = Number(newValue);
+                         currentRole[roleField] = isNaN(numValue) ? 0 : numValue;
+                    } else {
+                         currentRole[roleField] = newValue;
+                    }
+
+                } else if (categoryKey === 'operationalExpenses') {
+                    if (parts.length < 5) return prev;
+                    const opExIndex = parseInt(parts[3], 10);
+                    const opExField = parts[4];
+                    if (!Array.isArray(newBudgetData[factoryId].operationalExpenses) || 
+                        isNaN(opExIndex) || opExIndex < 0 || opExIndex >= newBudgetData[factoryId].operationalExpenses.length || 
+                        !opExField || !newBudgetData[factoryId].operationalExpenses[opExIndex]) return prev;
+
+                    const currentItem = newBudgetData[factoryId].operationalExpenses[opExIndex];
+                    if (opExField === 'amount') {
+                       const numValue = Number(newValue);
+                       currentItem[opExField] = isNaN(numValue) ? 0 : numValue;
+                    } else {
+                       currentItem[opExField] = newValue;
+                    }
+                }
+                return newBudgetData;
+            });
+        } else if (type === 'personnel') {
+            setPersonnel(prev => {
+                if (!Array.isArray(prev)) return prev;
+                if (parts.length < 3) return prev;
+                const personId = parts[1];
+                const field = parts[2];
+                if (!personId || !field) return prev;
+                
+                const newPersonnel = prev.map(p => {
+                    if (p && p.id === personId) {
+                        let updatedValue = newValue;
+                        if (field === 'skills' && typeof newValue === 'string') {
+                           updatedValue = newValue.split(',').map(s => s.trim()).filter(Boolean);
+                        } else if (field === 'experience') {
+                           const numValue = Number(newValue);
+                           updatedValue = isNaN(numValue) ? 0 : numValue;
+                        }
+                        return { ...p, [field]: updatedValue };
+                    }
+                    return p;
+                });
+                return newPersonnel;
+            });
+        }
+    } catch (error) {
+         console.error("Error in updateLocalState for id:", id, error);
+         setError("Error updating data locally. Changes might not be saved.");
+    }
+  }, [setError, setTimeline, setBudgetData, setPersonnel]);
+
+  // --- Define DUMMY Callbacks (Unconditionally) ---
+  const dummyGetOriginalText = useCallback(() => 'dummy', []);
+  const dummyUpdateFirestoreData = useCallback(async () => true, []);
+  const dummyUpdateLocalState = useCallback(() => {}, []);
+
+  // --- Call useInlineEditing hook unconditionally ---
+  const hookEditingLogic = useInlineEditing(
+      isClient ? realGetOriginalText : dummyGetOriginalText,
+      isClient ? realUpdateFirestoreData : dummyUpdateFirestoreData,
+      isClient ? realUpdateLocalState : dummyUpdateLocalState,
+      setError
+  );
+
+  // Use the results conditionally based on isClient
+  const editingLogic = isClient ? hookEditingLogic : initialEditingState;
 
   // Destructure from the conditionally assigned logic
   const {
@@ -121,7 +487,10 @@ export default function Dashboard() {
                 setSelectedFactoryId('');
             }
         };
-        fetchFactories();
+        fetchFactories(); // DIAGNOSTIC: Re-enable factory loading
+        // console.log("DIAGNOSTIC: Factory loading disabled. Setting empty state."); // REMOVE
+        // setFactories([]); // DIAGNOSTIC: Set empty state // REMOVE
+        // setSelectedFactoryId(''); // DIAGNOSTIC: Set empty state // REMOVE
         // --- End: Inline factory loading logic ---
 
       } else if (!loadingAuth && !user) {
@@ -612,360 +981,6 @@ export default function Dashboard() {
         e.currentTarget.classList.remove('drag-over-available');
     }
   };
-
-  // --- MODIFIED: Wrap getOriginalText in useCallback ---
-  // --- Restore Dependencies ---
-  const getOriginalText = useCallback((id) => {
-    if (!id || typeof id !== 'string') {
-        console.warn("getOriginalText called with invalid id:", id);
-        return '';
-    }
-    
-    const parts = id.split('-');
-    if (parts.length < 3) {
-         console.warn("getOriginalText: Invalid ID format", id);
-         return '';
-    }
-    const type = parts[0];
-
-    try {
-        if (type === 'timeline') {
-            if (parts.length < 3) return '';
-            const phaseIndex = parseInt(parts[1], 10);
-            const field = parts[2];
-            
-            if (!Array.isArray(timeline) || isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= timeline.length || !field) {
-                console.warn(`getOriginalText(timeline): Invalid index or data for id ${id}`);
-                return '';
-            }
-            const phase = timeline[phaseIndex];
-            if (!phase) {
-                 console.warn(`getOriginalText(timeline): Phase at index ${phaseIndex} is missing for id ${id}`);
-                 return '';
-            }
-
-            if (field === 'phase') return String(phase.phase ?? '');
-            if (field === 'timeframe') return String(phase.timeframe ?? '');
-            if (field === 'activity') {
-                if (parts.length < 4) return '';
-                const activityIndex = parseInt(parts[3], 10);
-                if (!Array.isArray(phase.activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= phase.activities.length) {
-                     console.warn(`getOriginalText(timeline): Invalid activity index or data for id ${id}`);
-                     return '';
-                }
-                return String(phase.activities[activityIndex] ?? '');
-            }
-        } else if (type === 'budget') {
-            if (parts.length < 3) return '';
-            const factoryId = parts[1];
-            const categoryKey = parts[2];
-            
-            if (!budgetData || typeof budgetData !== 'object' || !factoryId || !budgetData[factoryId]) {
-                console.warn(`getOriginalText(budget): Invalid factoryId or budgetData for id ${id}`);
-                return '';
-            }
-            const factory = budgetData[factoryId];
-            if (!factory) return '';
-
-            if (categoryKey === 'factoryName') return String(factory.name ?? '');
-            if (categoryKey === 'productionVolume') return String(factory.productionVolume ?? '');
-
-            if (categoryKey === 'personnelCosts') {
-                 if (parts.length < 6) return '';
-                 const personnelCategoryKey = parts[3];
-                 const roleIndex = parseInt(parts[4], 10);
-                 const roleField = parts[5];
-
-                 if (!factory.personnelCosts || typeof factory.personnelCosts !== 'object' || 
-                     !factory.personnelCosts[personnelCategoryKey] || 
-                     !Array.isArray(factory.personnelCosts[personnelCategoryKey].roles) ||
-                     isNaN(roleIndex) || roleIndex < 0 || roleIndex >= factory.personnelCosts[personnelCategoryKey].roles.length ||
-                     !roleField) {
-                         console.warn(`getOriginalText(budget): Invalid personnel cost path for id ${id}`);
-                         return '';
-                     }
-                 
-                 const role = factory.personnelCosts[personnelCategoryKey].roles[roleIndex];
-                 if (!role) {
-                      console.warn(`getOriginalText(budget): Role at index ${roleIndex} missing for id ${id}`);
-                      return '';
-                 }
-                 return String(role[roleField] ?? ''); 
-
-            } else if (categoryKey === 'operationalExpenses') {
-                 if (parts.length < 5) return '';
-                 const opExIndex = parseInt(parts[3], 10);
-                 const opExField = parts[4];
-                  if (!Array.isArray(factory.operationalExpenses) || 
-                      isNaN(opExIndex) || opExIndex < 0 || opExIndex >= factory.operationalExpenses.length || 
-                      !opExField) {
-                          console.warn(`getOriginalText(budget): Invalid operational expense path for id ${id}`);
-                          return '';
-                      }
-                  const item = factory.operationalExpenses[opExIndex];
-                  if (!item) {
-                      console.warn(`getOriginalText(budget): OpEx item at index ${opExIndex} missing for id ${id}`);
-                      return '';
-                  }
-                  return String(item[opExField] ?? '');
-            }
-        } else if (type === 'personnel') {
-            if (parts.length < 3) return '';
-            const personId = parts[1];
-            const field = parts[2];
-            if (!Array.isArray(personnel) || !personId || !field) {
-                 console.warn(`getOriginalText(personnel): Invalid id format or data for id ${id}`);
-                 return '';
-            }
-            const person = personnel.find(p => p && p.id === personId);
-            if (!person) {
-                 console.warn(`getOriginalText(personnel): Person with id ${personId} not found.`);
-                 return '';
-            }
-            if (field === 'skills' && Array.isArray(person.skills)) {
-                return person.skills.join(', ');
-            }
-            return String(person[field] ?? '');
-        }
-    } catch (error) {
-        console.error("Error in getOriginalText for id:", id, error);
-        return '';
-    }
-    
-    console.warn("getOriginalText: Unrecognized ID format or type:", id);
-    return '';
-  }, [personnel, factoryRoles, timeline, budgetData]); // Restore dependencies
-
-  // --- MODIFIED: Wrap updateLocalState in useCallback ---
-  const updateLocalState = useCallback((id, newValue) => {
-    if (!id || typeof id !== 'string') {
-        console.warn("updateLocalState called with invalid id:", id);
-        return;
-    }
-
-    const parts = id.split('-');
-    if (parts.length < 3) {
-         console.warn("updateLocalState: Invalid ID format", id);
-         return;
-    }
-    const type = parts[0];
-
-    try {
-        if (type === 'timeline') {
-            setTimeline(prev => {
-                if (!Array.isArray(prev)) return prev;
-                const newTimeline = JSON.parse(JSON.stringify(prev));
-                if (parts.length < 3) return prev;
-                const phaseIndex = parseInt(parts[1], 10);
-                const field = parts[2];
-                
-                if (isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= newTimeline.length || !field || !newTimeline[phaseIndex]) return prev;
-
-                if (field === 'phase') newTimeline[phaseIndex].phase = newValue;
-                else if (field === 'timeframe') newTimeline[phaseIndex].timeframe = newValue;
-                else if (field === 'activity') {
-                    if (parts.length < 4) return prev;
-                    const activityIndex = parseInt(parts[3], 10);
-                    if (!Array.isArray(newTimeline[phaseIndex].activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= newTimeline[phaseIndex].activities.length) return prev;
-                    newTimeline[phaseIndex].activities[activityIndex] = newValue;
-                }
-                return newTimeline;
-            });
-        } else if (type === 'budget') {
-            setBudgetData(prev => {
-                if (!prev || typeof prev !== 'object') return prev;
-                const newBudgetData = JSON.parse(JSON.stringify(prev));
-                if (parts.length < 3) return prev;
-                const factoryId = parts[1];
-                const categoryKey = parts[2];
-                
-                if (!factoryId || !newBudgetData[factoryId]) return prev;
-
-                if (categoryKey === 'factoryName') {
-                    newBudgetData[factoryId].name = newValue;
-                } else if (categoryKey === 'productionVolume') {
-                    const numValue = Number(newValue);
-                    newBudgetData[factoryId].productionVolume = isNaN(numValue) ? 0 : numValue;
-                } else if (categoryKey === 'personnelCosts') {
-                     if (parts.length < 6) return prev;
-                    const personnelCategoryKey = parts[3];
-                    const roleIndex = parseInt(parts[4], 10);
-                    const roleField = parts[5];
-                    if (!newBudgetData[factoryId].personnelCosts || typeof newBudgetData[factoryId].personnelCosts !== 'object' || 
-                        !newBudgetData[factoryId].personnelCosts[personnelCategoryKey] || 
-                        !Array.isArray(newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles) ||
-                        isNaN(roleIndex) || roleIndex < 0 || roleIndex >= newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles.length ||
-                        !roleField || !newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex]) return prev;
-                    
-                    const currentRole = newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex];
-                    if (roleField === 'count') {
-                         const numValue = Number(newValue);
-                         currentRole[roleField] = isNaN(numValue) ? 0 : numValue;
-                    } else {
-                         currentRole[roleField] = newValue;
-                    }
-
-                } else if (categoryKey === 'operationalExpenses') {
-                    if (parts.length < 5) return prev;
-                    const opExIndex = parseInt(parts[3], 10);
-                    const opExField = parts[4];
-                    if (!Array.isArray(newBudgetData[factoryId].operationalExpenses) || 
-                        isNaN(opExIndex) || opExIndex < 0 || opExIndex >= newBudgetData[factoryId].operationalExpenses.length || 
-                        !opExField || !newBudgetData[factoryId].operationalExpenses[opExIndex]) return prev;
-
-                    const currentItem = newBudgetData[factoryId].operationalExpenses[opExIndex];
-                    if (opExField === 'amount') {
-                       const numValue = Number(newValue);
-                       currentItem[opExField] = isNaN(numValue) ? 0 : numValue;
-                    } else {
-                       currentItem[opExField] = newValue;
-                    }
-                }
-                return newBudgetData;
-            });
-        } else if (type === 'personnel') {
-            setPersonnel(prev => {
-                if (!Array.isArray(prev)) return prev;
-                if (parts.length < 3) return prev;
-                const personId = parts[1];
-                const field = parts[2];
-                if (!personId || !field) return prev;
-                
-                const newPersonnel = prev.map(p => {
-                    if (p && p.id === personId) {
-                        let updatedValue = newValue;
-                        if (field === 'skills' && typeof newValue === 'string') {
-                           updatedValue = newValue.split(',').map(s => s.trim()).filter(Boolean);
-                        } else if (field === 'experience') {
-                           const numValue = Number(newValue);
-                           updatedValue = isNaN(numValue) ? 0 : numValue;
-                        }
-                        return { ...p, [field]: updatedValue };
-                    }
-                    return p;
-                });
-                return newPersonnel;
-            });
-        }
-    } catch (error) {
-         console.error("Error in updateLocalState for id:", id, error);
-         setError("Error updating data locally. Changes might not be saved.");
-    }
-  }, [setError]);
-
-  // --- MODIFIED: Update Firestore Data (Handles Array Updates for Roles) ---
-  const updateFirestoreData = useCallback(async (id, value) => {
-    const db = getDbInstance();
-    if (!id || typeof id !== 'string' || !db || !selectedFactoryId) {
-        if (!db) setError("Database error. Cannot save changes.");
-        else setError("Invalid data reference or factory selection. Cannot save changes.");
-        return false;
-    }
-
-    const parts = id.split('-');
-    if (parts.length < 3) {
-        setError("Invalid data structure for saving (ID format).");
-        console.error("Invalid ID format for updateFirestoreData:", id);
-        return false;
-    }
-    const type = parts[0];
-    const docId = parts[1]; // Role Key or Person ID
-    const field = parts[2]; // Top-level field or category
-
-    try {
-        let docRef;
-        let updatePayload = {};
-
-        if (type === 'personnel') {
-            // Handle personnel updates (as before)
-            docRef = doc(db, 'personnel', docId);
-            let updateValue = value;
-            if (field === 'skills' && typeof value === 'string') {
-                updateValue = value.split(',').map(s => s.trim()).filter(Boolean);
-            } else if (field === 'experience') {
-                const numValue = Number(value);
-                updateValue = isNaN(numValue) ? 0 : numValue;
-            }
-            updatePayload = { [field]: updateValue, updatedAt: new Date() };
-            await updateDoc(docRef, updatePayload);
-            console.log(`Updated personnel ${docId} field ${field}`);
-
-        } else if (type === 'role') {
-            // Handle role updates
-            docRef = doc(db, 'factories', selectedFactoryId, 'roles', docId);
-
-            if (field === 'title') { // Simple field update
-                 updatePayload = { title: value, updatedAt: new Date() };
-                 await updateDoc(docRef, updatePayload);
-                 console.log(`Updated role ${docId} field title`);
-
-            } else if (field === 'responsibility') { // Basic responsibility item update
-                 if (parts.length < 4) throw new Error('Invalid role responsibility ID');
-                 const index = parseInt(parts[3], 10);
-                 if (isNaN(index)) throw new Error('Invalid index in role responsibility ID');
-
-                 // Need to fetch current array, modify, and update the whole array
-                 const roleSnap = await getDoc(docRef);
-                 if (!roleSnap.exists()) throw new Error('Role not found for update');
-                 const currentData = roleSnap.data();
-                 const currentResponsibilities = Array.isArray(currentData.responsibilities) ? [...currentData.responsibilities] : [];
-                 if (index >= 0 && index < currentResponsibilities.length) {
-                     currentResponsibilities[index] = value; // Update the item at index
-                     updatePayload = { responsibilities: currentResponsibilities, updatedAt: new Date() };
-                     await updateDoc(docRef, updatePayload);
-                     console.log(`Updated role ${docId} responsibility at index ${index}`);
-                 } else {
-                     throw new Error(`Invalid index ${index} for responsibilities array`);
-                 }
-
-            } else if (field === 'detailedResponsibility') { // Detailed responsibility item update
-                 if (parts.length < 5) throw new Error('Invalid role detailed responsibility ID');
-                 const category = parts[3];
-                 const index = parseInt(parts[4], 10);
-                 if (isNaN(index) || !category) throw new Error('Invalid category/index in role detailed responsibility ID');
-
-                 const roleSnap = await getDoc(docRef);
-                 if (!roleSnap.exists()) throw new Error('Role not found for update');
-                 const currentData = roleSnap.data();
-                 const currentDetailed = currentData.detailedResponsibilities ? JSON.parse(JSON.stringify(currentData.detailedResponsibilities)) : {};
-                 
-                 if (currentDetailed[category] && Array.isArray(currentDetailed[category]) && index >= 0 && index < currentDetailed[category].length) {
-                     currentDetailed[category][index] = value; // Update item at index
-                     // Use dot notation for updating nested map fields
-                     updatePayload[`detailedResponsibilities.${category}`] = currentDetailed[category]; 
-                     updatePayload.updatedAt = new Date();
-                     await updateDoc(docRef, updatePayload); 
-                     console.log(`Updated role ${docId} detailed responsibility in category ${category} at index ${index}`);
-                 } else {
-                    throw new Error(`Invalid category ${category} or index ${index} for detailed responsibilities array`);
-                 }
-            } else {
-                 // Handle other simple role fields if needed (e.g., salary, department)
-                 // updatePayload = { [field]: value, updatedAt: new Date() }; 
-                 // await updateDoc(docRef, updatePayload);
-                 // console.log(`Updated role ${docId} field ${field}`);
-                 console.warn(`Unhandled role field update for: ${field}`);
-                 return false; // Indicate unhandled update
-            }
-        } 
-        // Add handling for timeline, budget if they use this same update function
-        // else if (type === 'timeline') { ... }
-        // else if (type === 'budget') { ... }
-        
-        else {
-            console.warn("updateFirestoreData: Unrecognized type:", type);
-            setError(`Cannot save changes for unknown data type: ${type}`);
-            return false;
-        }
-
-        return true; // Indicate success
-
-    } catch (error) {
-        console.error(`Error updating Firestore for id ${id}:`, error);
-        setError(`Failed to save changes for ${id}. Details: ${error.message}`);
-        return false;
-    }
-  }, [setError, selectedFactoryId]); // Added selectedFactoryId dependency
 
   // --- NEW: Add Responsibility ---
   const addResponsibility = useCallback(async (roleId, type, category = null) => {
