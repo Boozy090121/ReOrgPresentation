@@ -33,7 +33,7 @@ const RoleCard = ({
   }
 
   // Ensure personnel is an array before filtering
-  const assigned = Array.isArray(personnel) ? personnel.filter(p => p.assignedRole === roleKey) : [];
+  const assigned = Array.isArray(personnel) ? personnel.filter(p => p.assignedRoleKey === roleKey) : [];
   const cardStyle = {
     borderLeft: `5px solid ${roleData.color || '#ccc'}`, // Use roleData.color for border
   };

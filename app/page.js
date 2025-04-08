@@ -57,6 +57,7 @@ export default function Dashboard() {
   const [timeline, setTimeline] = useState([]);
   const [sharedRolesData, setSharedRolesData] = useState({}); // State for shared roles
   const [allRolesData, setAllRolesData] = useState({}); // State for all roles across factories
+  const [loadingPresentationData, setLoadingPresentationData] = useState(false); // Loading state for presentation
 
   // Use the Auth hook
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
@@ -89,7 +90,8 @@ export default function Dashboard() {
           console.log("All roles data loaded for presentation view.");
         }).catch(err => {
           console.error("Error loading all roles data:", err);
-          // setError("Failed to load data required for presentation view.");
+          setError("Failed to load data required for presentation view.");
+          setAllRolesData({}); // Clear potentially partial data
         });
         // --- End Load All Roles ---
 
@@ -1257,6 +1259,42 @@ export default function Dashboard() {
     }
   }, [isUserAdmin, selectedFactoryId, personnel, factoryRoles, setError, setFactoryRoles]);
 
+  // --- NEW: Effect to load allRolesData when Presentation tab is active ---
+  useEffect(() => {
+    if (activeTab === 'presentation' && user && factories.length > 0) {
+        // Only load if not already loaded or empty
+        if (Object.keys(allRolesData).length === 0) {
+            console.log("Presentation tab active, loading all roles data...");
+            setLoadingPresentationData(true);
+            setError(null); // Clear previous errors potentially
+
+            const loadAllRoles = async () => {
+                try {
+                    const allRolePromises = factories.map(f => loadRoles(f.id));
+                    const rolesArrays = await Promise.all(allRolePromises);
+                    const combinedRoles = {};
+                    factories.forEach((factory, index) => {
+                        combinedRoles[factory.id] = rolesArrays[index] || {};
+                    });
+                    setAllRolesData(combinedRoles);
+                    console.log("All roles data loaded successfully for presentation view.");
+                } catch (err) {
+                    console.error("Error loading all roles data for presentation view:", err);
+                    setError("Failed to load data required for presentation view.");
+                    setAllRolesData({}); // Clear potentially partial data
+                } finally {
+                    setLoadingPresentationData(false);
+                }
+            };
+
+            loadAllRoles();
+        } else {
+            console.log("Presentation tab active, all roles data already loaded.");
+        }
+    }
+    // Dependency: only trigger when activeTab changes, or user/factories load initially
+  }, [activeTab, user, factories, loadRoles]); // loadRoles needed as it's used inside
+
   const renderContent = () => {
     if (loadingAuth) {
         return <div className="loading-container">Authenticating...</div>;
@@ -1384,12 +1422,26 @@ export default function Dashboard() {
              />
           ) : <div className="loading-container">Loading analysis data...</div>;
         case 'presentation':
+          // Show loading state while fetching all roles
+          if (loadingPresentationData) {
+              return <div className="loading-container">Loading overview data...</div>;
+          }
+          // Show error if loading failed, but only if it happened during presentation data load
+          if (error && activeTab === 'presentation') {
+              return (
+                  <div className="error-banner" style={{ margin: '20px' }}>
+                      <AlertCircle size={18} style={{ marginRight: '8px' }} />
+                      {error}
+                  </div>
+              );
+          }
+          // Render view if data is ready (even if empty)
           return (
-            <PresentationView 
-              factories={factories}
-              allPersonnel={personnel}
-              allRolesData={allRolesData}
-            />
+              <PresentationView 
+                  factories={factories} // Pass all factories (incl. _shared)
+                  allPersonnel={personnel}
+                  allRolesData={allRolesData}
+              />
           );
        default:
          return <div className="tab-content">Select a tab</div>; 
