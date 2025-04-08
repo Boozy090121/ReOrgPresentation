@@ -622,6 +622,7 @@ export default function Dashboard() {
   };
 
   // --- MODIFIED: Wrap getOriginalText in useCallback ---
+  // --- DIAGNOSTIC: Temporarily remove state dependencies ---
   const getOriginalText = useCallback((id) => {
     if (!id || typeof id !== 'string') {
         console.warn("getOriginalText called with invalid id:", id);
@@ -741,7 +742,7 @@ export default function Dashboard() {
     
     console.warn("getOriginalText: Unrecognized ID format or type:", id);
     return '';
-  }, [personnel, timeline, budgetData]);
+  }, []); // DIAGNOSTIC: Removed [personnel, factoryRoles, timeline, budgetData]
 
   // --- MODIFIED: Wrap updateLocalState in useCallback ---
   const updateLocalState = useCallback((id, newValue) => {
