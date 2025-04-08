@@ -18,8 +18,8 @@ import { useIsClient } from '../lib/hooks/useIsClient';
 
 // --- DIAGNOSTIC: Revert to Static Imports ---
 // import OrgStructure from '../components/OrgStructure'; // DIAGNOSTIC: Comment out import
-import AvailablePersonnel from '../components/AvailablePersonnel';
-import RoleCard from '../components/RoleCard'; // Consider if this still causes issues
+// import AvailablePersonnel from '../components/AvailablePersonnel'; // DIAGNOSTIC: Comment out import
+// import RoleCard from '../components/RoleCard'; // DIAGNOSTIC: Comment out import
 import Timeline from '../components/Timeline';
 import Budget from '../components/Budget';
 // ConfirmActionModal already imported statically
