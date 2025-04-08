@@ -66,14 +66,23 @@ export default function Dashboard() {
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
 
   // Instantiate the inline editing hook
-  const {
-    editingId,
-    editText,
-    handleTextClick,
-    handleTextChange,
-    handleTextBlur,
-    handleKeyDown,
-  } = useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError);
+  // --- DIAGNOSTIC: Temporarily comment out useInlineEditing hook ---
+  // const {
+  //   editingId,
+  //   editText,
+  //   handleTextClick,
+  //   handleTextChange,
+  //   handleTextBlur,
+  //   handleKeyDown,
+  // } = useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError);
+  // --- Dummy variables to prevent other errors --- 
+  const editingId = null;
+  const editText = '';
+  const handleTextClick = () => {};
+  const handleTextChange = () => {};
+  const handleTextBlur = () => {};
+  const handleKeyDown = () => {};
+  // --------------------------------------------------------
 
   // Data Loading Effect (depends on user authentication)
   // --- REFACTORED: Effect 1 - Load Factories on Auth Ready ---
@@ -622,7 +631,7 @@ export default function Dashboard() {
   };
 
   // --- MODIFIED: Wrap getOriginalText in useCallback ---
-  // --- DIAGNOSTIC: Temporarily remove state dependencies ---
+  // --- Restore Dependencies ---
   const getOriginalText = useCallback((id) => {
     if (!id || typeof id !== 'string') {
         console.warn("getOriginalText called with invalid id:", id);
@@ -742,7 +751,7 @@ export default function Dashboard() {
     
     console.warn("getOriginalText: Unrecognized ID format or type:", id);
     return '';
-  }, []); // DIAGNOSTIC: Removed [personnel, factoryRoles, timeline, budgetData]
+  }, [personnel, factoryRoles, timeline, budgetData]); // Restore dependencies
 
   // --- MODIFIED: Wrap updateLocalState in useCallback ---
   const updateLocalState = useCallback((id, newValue) => {
