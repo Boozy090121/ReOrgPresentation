@@ -14,6 +14,7 @@ import WorkloadAnalysis from '../components/WorkloadAnalysis';
 import { useAuth } from '../lib/hooks/useAuth';
 import { useInlineEditing } from '../lib/hooks/useInlineEditing';
 import PresentationView from '../components/PresentationView';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 // Dynamically import components relying heavily on client-side logic/DOM
 const OrgStructure = dynamic(() => import('../components/OrgStructure'), {
@@ -58,6 +59,8 @@ export default function Dashboard() {
   const [sharedRolesData, setSharedRolesData] = useState({}); // State for shared roles
   const [allRolesData, setAllRolesData] = useState({}); // State for all roles across factories
   const [loadingPresentationData, setLoadingPresentationData] = useState(false); // Loading state for presentation
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false); // Modal state
+  const [confirmModalProps, setConfirmModalProps] = useState({}); // Props for modal (message, onConfirm)
 
   // Use the Auth hook
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
@@ -79,21 +82,27 @@ export default function Dashboard() {
       console.log("Auth resolved. User authenticated. Proceeding with data load checks.");
       // Load factories first (including _shared)
       loadFactories().then(loadedFactories => {
-        // --- Load All Roles Data for Presentation View --- 
-        const allRolePromises = loadedFactories.map(f => loadRoles(f.id));
-        Promise.all(allRolePromises).then(rolesArrays => {
-          const combinedRoles = {};
-          loadedFactories.forEach((factory, index) => {
-            combinedRoles[factory.id] = rolesArrays[index] || {};
-          });
-          setAllRolesData(combinedRoles);
-          console.log("All roles data loaded for presentation view.");
-        }).catch(err => {
-          console.error("Error loading all roles data:", err);
-          setError("Failed to load data required for presentation view.");
-          setAllRolesData({}); // Clear potentially partial data
-        });
-        // --- End Load All Roles ---
+        // Load all roles data immediately after factories are known
+        if (loadedFactories && loadedFactories.length > 0) {
+            setLoadingPresentationData(true); // Indicate we are loading this data
+            const allRolePromises = loadedFactories.map(f => loadRoles(f.id));
+            Promise.all(allRolePromises).then(rolesArrays => {
+                const combinedRoles = {};
+                loadedFactories.forEach((factory, index) => {
+                    combinedRoles[factory.id] = rolesArrays[index] || {};
+                });
+                setAllRolesData(combinedRoles);
+                console.log("All roles data loaded successfully.");
+            }).catch(err => {
+                console.error("Error loading all roles data:", err);
+                setError(prev => prev ? prev + "\nFailed to load roles for overview." : "Failed to load roles for overview.");
+                setAllRolesData({}); // Clear potentially partial data
+            }).finally(() => {
+                setLoadingPresentationData(false); // Loading finished (success or fail)
+            });
+        } else {
+            setAllRolesData({}); // No factories, no roles data
+        }
 
         // Determine the factory ID to load data for selection (exclude _shared)
         const nonShared = loadedFactories.filter(f => f.id !== '_shared');
@@ -105,8 +114,8 @@ export default function Dashboard() {
           console.log("Shared roles loaded:", Object.keys(loadedSharedRoles || {}).length);
         }).catch(err => {
           console.error("Error loading shared roles:", err);
-          // Decide if this error should block rendering or just show a warning
-          // setError(prev => (prev ? prev + "\nFailed to load shared roles." : "Failed to load shared roles."));
+          // Set error state if shared roles fail to load
+          setError(prev => prev ? prev + "\nFailed to load shared roles." : "Failed to load shared roles.");
         });
         // --- End Load Shared Roles ---
 
@@ -117,15 +126,25 @@ export default function Dashboard() {
             setInitialDataLoaded(false);
             console.log(`loadAllDataForFactory called for factory: ${factoryIdToLoad}...`);
             try {
-              // Personnel, Timeline, Budget loading functions now need factoryId
-              console.log("Loading personnel...");
+              // Personnel is global, load regardless
+              console.log("Loading personnel (global)...");
               const loadedPersonnel = await loadPersonnel();
-              console.log("Loading roles for factory:", factoryIdToLoad);
-              const loadedRoles = await loadRoles(factoryIdToLoad);
-              console.log("Loading timeline for factory:", factoryIdToLoad);
-              const loadedTimelineData = await loadTimeline(factoryIdToLoad);
-              console.log("Loading budget for factory:", factoryIdToLoad);
-              const loadedBudget = await loadBudget(factoryIdToLoad);
+              
+              let loadedRoles = {};
+              let loadedTimelineData = [];
+              let loadedBudget = {};
+
+              // Load factory-specific data only if factoryIdToLoad is valid and not _shared
+              if (factoryIdToLoad && factoryIdToLoad !== '_shared') {
+                  console.log("Loading roles for factory:", factoryIdToLoad);
+                  loadedRoles = await loadRoles(factoryIdToLoad);
+                  console.log("Loading timeline for factory:", factoryIdToLoad);
+                  loadedTimelineData = await loadTimeline(factoryIdToLoad);
+                  console.log("Loading budget for factory:", factoryIdToLoad);
+                  loadedBudget = await loadBudget(factoryIdToLoad);
+              } else {
+                  console.log("Skipping roles/timeline/budget load for factoryId:", factoryIdToLoad);
+              }
 
               console.log("Setting state with loaded data...");
               setPersonnel(loadedPersonnel || []);
@@ -377,57 +396,50 @@ export default function Dashboard() {
       }
   }, [isUserAdmin, setError, setFactories, setSelectedFactoryId, factories, initialBudgetData, timelineInitialData]); // Added dependencies
 
-  // --- NEW: Delete Factory ---
+  // --- NEW: Delete Factory (Uses Modal) ---
   const deleteFactory = useCallback(async () => {
-      const db = getDbInstance();
-      if (!isUserAdmin || !db || !selectedFactoryId) {
-          setError("Permission denied, no factory selected, or database error. Cannot delete factory.");
+      if (!isUserAdmin || !selectedFactoryId) {
+          setError("Permission denied or no factory selected.");
           return;
       }
-
       const factoryToDelete = factories.find(f => f.id === selectedFactoryId);
       if (!factoryToDelete) {
-          setError("Cannot delete: Selected factory not found in the list.");
+          setError("Cannot delete: Selected factory not found.");
           return;
       }
 
-      // --- Confirmation --- 
-      const confirmation = window.confirm(
-          `Are you sure you want to permanently delete the factory "${factoryToDelete.name || selectedFactoryId}"? ` +
-          `This action cannot be undone.\n\n` +
-          `(Note: Associated roles, timeline, and budget data within this factory will need manual cleanup or a dedicated script/function.)`
-      );
-
-      if (!confirmation) {
-          return; // User cancelled
-      }
-
-      setError(null);
-      try {
-          const factoryDocRef = doc(db, 'factories', selectedFactoryId);
-          await deleteDoc(factoryDocRef);
-          console.log("Deleted factory with ID:", selectedFactoryId);
-
-          // Update local state
-          const remainingFactories = factories.filter(f => f.id !== selectedFactoryId);
-          setFactories(remainingFactories);
-
-          // Select the first remaining factory, or clear selection if none left
-          if (remainingFactories.length > 0) {
-              setSelectedFactoryId(remainingFactories[0].id);
-          } else {
-              setSelectedFactoryId('');
-              // Clear dependent data as no factory is selected
-              setFactoryRoles({});
-              setTimeline([]);
-              setBudgetData({});
-              setInitialDataLoaded(true); // Still considered loaded, just empty
+      // Set props for the modal and open it
+      setConfirmModalProps({
+          title: "Delete Factory?",
+          message: `Are you sure you want to permanently delete the factory "${factoryToDelete.name || selectedFactoryId}"? This cannot be undone. (Note: Sub-data like roles/timeline/budget won't be automatically deleted.)`,
+          onConfirm: async () => {
+              setIsConfirmModalOpen(false); // Close modal first
+              const db = getDbInstance();
+              if (!db) {
+                  setError("Database connection error.");
+                  return;
+              }
+              setError(null);
+              try {
+                  await deleteDoc(doc(db, 'factories', selectedFactoryId));
+                  console.log("Deleted factory with ID:", selectedFactoryId);
+                  const remainingFactories = factories.filter(f => f.id !== selectedFactoryId);
+                  setFactories(remainingFactories);
+                  const nextSelectedId = remainingFactories.length > 0 ? remainingFactories[0].id : '';
+                  setSelectedFactoryId(nextSelectedId);
+                  if (!nextSelectedId) { // Clear data if no factory left
+                    setFactoryRoles({});
+                    setTimeline([]);
+                    setBudgetData({});
+                  }
+              } catch (err) { 
+                  console.error("Error deleting factory:", err);
+                  setError(`Failed to delete factory ${factoryToDelete.name || selectedFactoryId}. Error: ${err.message}`);
+              }
           }
+      });
+      setIsConfirmModalOpen(true);
 
-      } catch (err) {
-          console.error("Error deleting factory:", err);
-          setError(`Failed to delete factory ${factoryToDelete.name || selectedFactoryId}. Error: ${err.message}`);
-      }
   }, [isUserAdmin, selectedFactoryId, factories, setError, setFactories, setSelectedFactoryId]);
 
   const handleDragStart = (e, person) => {
@@ -580,6 +592,7 @@ export default function Dashboard() {
     }
   };
 
+  // --- MODIFIED: Wrap getOriginalText in useCallback ---
   const getOriginalText = useCallback((id) => {
     if (!id || typeof id !== 'string') {
         console.warn("getOriginalText called with invalid id:", id);
@@ -701,7 +714,8 @@ export default function Dashboard() {
     return '';
   }, [personnel, timeline, budgetData]);
 
-  const updateLocalState = useCallback((id, value) => {
+  // --- MODIFIED: Wrap updateLocalState in useCallback ---
+  const updateLocalState = useCallback((id, newValue) => {
     if (!id || typeof id !== 'string') {
         console.warn("updateLocalState called with invalid id:", id);
         return;
@@ -725,13 +739,13 @@ export default function Dashboard() {
                 
                 if (isNaN(phaseIndex) || phaseIndex < 0 || phaseIndex >= newTimeline.length || !field || !newTimeline[phaseIndex]) return prev;
 
-                if (field === 'phase') newTimeline[phaseIndex].phase = value;
-                else if (field === 'timeframe') newTimeline[phaseIndex].timeframe = value;
+                if (field === 'phase') newTimeline[phaseIndex].phase = newValue;
+                else if (field === 'timeframe') newTimeline[phaseIndex].timeframe = newValue;
                 else if (field === 'activity') {
                     if (parts.length < 4) return prev;
                     const activityIndex = parseInt(parts[3], 10);
                     if (!Array.isArray(newTimeline[phaseIndex].activities) || isNaN(activityIndex) || activityIndex < 0 || activityIndex >= newTimeline[phaseIndex].activities.length) return prev;
-                    newTimeline[phaseIndex].activities[activityIndex] = value;
+                    newTimeline[phaseIndex].activities[activityIndex] = newValue;
                 }
                 return newTimeline;
             });
@@ -746,9 +760,9 @@ export default function Dashboard() {
                 if (!factoryId || !newBudgetData[factoryId]) return prev;
 
                 if (categoryKey === 'factoryName') {
-                    newBudgetData[factoryId].name = value;
+                    newBudgetData[factoryId].name = newValue;
                 } else if (categoryKey === 'productionVolume') {
-                    const numValue = Number(value);
+                    const numValue = Number(newValue);
                     newBudgetData[factoryId].productionVolume = isNaN(numValue) ? 0 : numValue;
                 } else if (categoryKey === 'personnelCosts') {
                      if (parts.length < 6) return prev;
@@ -763,10 +777,10 @@ export default function Dashboard() {
                     
                     const currentRole = newBudgetData[factoryId].personnelCosts[personnelCategoryKey].roles[roleIndex];
                     if (roleField === 'count') {
-                         const numValue = Number(value);
+                         const numValue = Number(newValue);
                          currentRole[roleField] = isNaN(numValue) ? 0 : numValue;
                     } else {
-                         currentRole[roleField] = value;
+                         currentRole[roleField] = newValue;
                     }
 
                 } else if (categoryKey === 'operationalExpenses') {
@@ -779,10 +793,10 @@ export default function Dashboard() {
 
                     const currentItem = newBudgetData[factoryId].operationalExpenses[opExIndex];
                     if (opExField === 'amount') {
-                       const numValue = Number(value);
+                       const numValue = Number(newValue);
                        currentItem[opExField] = isNaN(numValue) ? 0 : numValue;
                     } else {
-                       currentItem[opExField] = value;
+                       currentItem[opExField] = newValue;
                     }
                 }
                 return newBudgetData;
@@ -797,11 +811,11 @@ export default function Dashboard() {
                 
                 const newPersonnel = prev.map(p => {
                     if (p && p.id === personId) {
-                        let updatedValue = value;
-                        if (field === 'skills' && typeof value === 'string') {
-                           updatedValue = value.split(',').map(s => s.trim()).filter(Boolean);
+                        let updatedValue = newValue;
+                        if (field === 'skills' && typeof newValue === 'string') {
+                           updatedValue = newValue.split(',').map(s => s.trim()).filter(Boolean);
                         } else if (field === 'experience') {
-                           const numValue = Number(value);
+                           const numValue = Number(newValue);
                            updatedValue = isNaN(numValue) ? 0 : numValue;
                         }
                         return { ...p, [field]: updatedValue };
@@ -1090,43 +1104,42 @@ export default function Dashboard() {
       }
   }, [isUserAdmin, setError, setPersonnel]);
 
-  // --- NEW: Delete Personnel ---
+  // --- NEW: Delete Personnel (Uses Modal) ---
   const deletePersonnel = useCallback(async (personId) => {
-      const db = getDbInstance();
-      if (!isUserAdmin || !db || !personId) {
-          setError("Permission denied, invalid ID, or database error. Cannot delete personnel.");
-          return;
-      }
+    if (!isUserAdmin || !personId) {
+      setError("Permission denied or invalid ID. Cannot delete personnel.");
+      return;
+    }
+    const personToDelete = personnel.find(p => p.id === personId);
+    if (!personToDelete) {
+      setError("Cannot delete: Person not found.");
+      return;
+    }
 
-      const personToDelete = personnel.find(p => p.id === personId);
-      if (!personToDelete) {
-          setError("Cannot delete: Person not found.");
-          return;
-      }
+    // Set props for the modal and open it
+    setConfirmModalProps({
+        title: "Delete Person?",
+        message: `Are you sure you want to permanently delete "${personToDelete.name || personId}"? This cannot be undone.`,
+        onConfirm: async () => {
+            setIsConfirmModalOpen(false); // Close modal
+            const db = getDbInstance();
+            if (!db) {
+                 setError("Database connection error.");
+                 return;
+            }
+             setError(null);
+            try {
+                await deleteDoc(doc(db, 'personnel', personId));
+                console.log("Deleted personnel with ID:", personId);
+                setPersonnel(prev => prev.filter(p => p.id !== personId));
+            } catch (err) {
+                console.error("Error deleting personnel:", err);
+                setError(`Failed to delete ${personToDelete.name || personId}. Error: ${err.message}`);
+            }
+        }
+    });
+    setIsConfirmModalOpen(true);
 
-      // Confirmation
-      const confirmation = window.confirm(
-          `Are you sure you want to permanently delete "${personToDelete.name || personId}"? ` +
-          `This action cannot be undone.`
-      );
-
-      if (!confirmation) {
-          return; // User cancelled
-      }
-
-      setError(null);
-      try {
-          const personDocRef = doc(db, 'personnel', personId);
-          await deleteDoc(personDocRef);
-          console.log("Deleted personnel with ID:", personId);
-
-          // Update local state
-          setPersonnel(prev => prev.filter(p => p.id !== personId));
-
-      } catch (err) {
-          console.error("Error deleting personnel:", err);
-          setError(`Failed to delete ${personToDelete.name || personId}. Error: ${err.message}`);
-      }
   }, [isUserAdmin, personnel, setError, setPersonnel]);
 
   const saveTimelineChanges = useCallback(async () => {
@@ -1208,92 +1221,52 @@ export default function Dashboard() {
     }
   }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles, colors.gray]);
 
-  // --- NEW: Delete Role --- 
+  // --- NEW: Delete Role (Uses Modal) --- 
   const deleteRole = useCallback(async (roleIdToDelete) => {
-    const db = getDbInstance();
-    if (!isUserAdmin || !db || !selectedFactoryId || !roleIdToDelete) {
-      setError("Permission denied, invalid role/factory ID, or database error. Cannot delete role.");
+    if (!isUserAdmin || !selectedFactoryId || !roleIdToDelete) {
+      setError("Permission denied or invalid data. Cannot delete role.");
       return;
     }
-
-    // Check if any personnel are assigned to this role in this factory
     const assignedPersonnelCount = personnel.filter(p => p.assignedFactoryId === selectedFactoryId && p.assignedRoleKey === roleIdToDelete).length;
-
     if (assignedPersonnelCount > 0) {
       setError(`Cannot delete role: ${assignedPersonnelCount} personnel still assigned. Please reassign them first.`);
       return;
     }
-
     const roleToDelete = factoryRoles[roleIdToDelete];
     if (!roleToDelete) {
-      setError("Cannot delete: Role not found in current factory data.");
+      setError("Cannot delete: Role not found.");
       return;
     }
 
-    // Confirmation
-    const confirmation = window.confirm(
-      `Are you sure you want to permanently delete the role "${roleToDelete.title || roleIdToDelete}"? ` +
-      `This action cannot be undone.`
-    );
-
-    if (!confirmation) {
-      return; // User cancelled
-    }
-
-    setError(null);
-    try {
-        const roleDocRef = doc(db, 'factories', selectedFactoryId, 'roles', roleIdToDelete);
-        await deleteDoc(roleDocRef);
-        console.log("Deleted role with ID:", roleIdToDelete, "from factory", selectedFactoryId);
-
-        // Update local state
-        setFactoryRoles(prev => {
-            const newState = { ...prev };
-            delete newState[roleIdToDelete];
-            return newState;
-        });
-
-    } catch (err) {
-        console.error("Error deleting role:", err);
-        setError(`Failed to delete role ${roleToDelete.title || roleIdToDelete}. Error: ${err.message}`);
-    }
-  }, [isUserAdmin, selectedFactoryId, personnel, factoryRoles, setError, setFactoryRoles]);
-
-  // --- NEW: Effect to load allRolesData when Presentation tab is active ---
-  useEffect(() => {
-    if (activeTab === 'presentation' && user && factories.length > 0) {
-        // Only load if not already loaded or empty
-        if (Object.keys(allRolesData).length === 0) {
-            console.log("Presentation tab active, loading all roles data...");
-            setLoadingPresentationData(true);
-            setError(null); // Clear previous errors potentially
-
-            const loadAllRoles = async () => {
-                try {
-                    const allRolePromises = factories.map(f => loadRoles(f.id));
-                    const rolesArrays = await Promise.all(allRolePromises);
-                    const combinedRoles = {};
-                    factories.forEach((factory, index) => {
-                        combinedRoles[factory.id] = rolesArrays[index] || {};
-                    });
-                    setAllRolesData(combinedRoles);
-                    console.log("All roles data loaded successfully for presentation view.");
-                } catch (err) {
-                    console.error("Error loading all roles data for presentation view:", err);
-                    setError("Failed to load data required for presentation view.");
-                    setAllRolesData({}); // Clear potentially partial data
-                } finally {
-                    setLoadingPresentationData(false);
-                }
-            };
-
-            loadAllRoles();
-        } else {
-            console.log("Presentation tab active, all roles data already loaded.");
+    // Set props for the modal and open it
+    setConfirmModalProps({
+        title: "Delete Role?",
+        message: `Are you sure you want to permanently delete the role "${roleToDelete.title || roleIdToDelete}"? This cannot be undone.`,
+        onConfirm: async () => {
+            setIsConfirmModalOpen(false); // Close modal
+            const db = getDbInstance();
+            if (!db) {
+                 setError("Database connection error.");
+                 return;
+            }
+            setError(null);
+            try {
+                await deleteDoc(doc(db, 'factories', selectedFactoryId, 'roles', roleIdToDelete));
+                console.log("Deleted role with ID:", roleIdToDelete, "from factory", selectedFactoryId);
+                setFactoryRoles(prev => {
+                    const newState = { ...prev };
+                    delete newState[roleIdToDelete];
+                    return newState;
+                });
+            } catch (err) {
+                console.error("Error deleting role:", err);
+                setError(`Failed to delete role ${roleToDelete.title || roleIdToDelete}. Error: ${err.message}`);
+            }
         }
-    }
-    // Dependency: only trigger when activeTab changes, or user/factories load initially
-  }, [activeTab, user, factories, loadRoles]); // loadRoles needed as it's used inside
+    });
+    setIsConfirmModalOpen(true);
+
+  }, [isUserAdmin, selectedFactoryId, personnel, factoryRoles, setError, setFactoryRoles]);
 
   const renderContent = () => {
     if (loadingAuth) {
@@ -1422,16 +1395,16 @@ export default function Dashboard() {
              />
           ) : <div className="loading-container">Loading analysis data...</div>;
         case 'presentation':
-          // Show loading state while fetching all roles
+          // Show loading state while fetching all roles (now might be tied to initial load)
           if (loadingPresentationData) {
               return <div className="loading-container">Loading overview data...</div>;
           }
-          // Show error if loading failed, but only if it happened during presentation data load
-          if (error && activeTab === 'presentation') {
+          // Show error if loading failed for overview roles
+          if (error && (error.includes("Failed to load roles for overview") || error.includes("Failed to load shared roles"))) {
               return (
                   <div className="error-banner" style={{ margin: '20px' }}>
                       <AlertCircle size={18} style={{ marginRight: '8px' }} />
-                      {error}
+                      {error} // Show the specific error related to overview data load
                   </div>
               );
           }
@@ -1546,6 +1519,16 @@ export default function Dashboard() {
         )}
          {renderContent()}
       </main>
+
+      {/* --- Render Confirmation Modal --- */}
+      <ConfirmationModal 
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmModalProps.onConfirm} // Pass the specific confirm action
+        title={confirmModalProps.title}
+        message={confirmModalProps.message}
+      />
+
     </div>
   );
 }
