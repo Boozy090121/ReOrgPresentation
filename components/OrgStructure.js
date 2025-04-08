@@ -28,16 +28,18 @@ const OrgStructure = ({
   sharedPersonnel // New prop: Personnel assigned to shared roles
 }) => {
 
-  const [expandedRoles, setExpandedRoles] = useState({});
+  // const [expandedRoles, setExpandedRoles] = useState({}); // DIAGNOSTIC: Comment out useState
 
   // Initial check for roles data
   if (!roles) { // Check for selected factory roles
     return <div className="org-structure-container">Loading organizational structure...</div>;
   }
 
+  /* // DIAGNOSTIC: Comment out toggleRole
   const toggleRole = (roleId) => {
     setExpandedRoles(prev => ({ ...prev, [roleId]: !prev[roleId] }));
   };
+  */
 
   // --- DIAGNOSTIC: Comment out renderRoleCard definition ---
   /*
