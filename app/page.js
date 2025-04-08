@@ -1332,6 +1332,7 @@ export default function Dashboard() {
     }
 
     // --- DIAGNOSTIC: Only render 'structure' tab content ---
+    // --- FURTHER DIAGNOSTIC: Only render OrgStructure --- 
     // switch (activeTab) {
     //   case 'structure':
          return (
@@ -1362,6 +1363,7 @@ export default function Dashboard() {
                           sharedPersonnel={personnel.filter(p => p.assignedFactoryId === '_shared')}
                />
              </div>
+             {/* --- Commented out for diagnostic ---
              <AvailablePersonnel
                         personnel={personnel.filter(p => !p.assignedRoleKey)}
                         setPersonnel={setPersonnel}
@@ -1383,6 +1385,7 @@ export default function Dashboard() {
                         addPersonnel={addPersonnel}
                         deletePersonnel={deletePersonnel}
              />
+             */}
           </div>
          );
     //   case 'timeline':
