@@ -47,8 +47,8 @@ export default function Dashboard() {
 
   // Use the Auth hook
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
-  // const isClient = useIsClient(); // DIAGNOSTIC: Comment out useIsClient
-  const isClient = true; // DIAGNOSTIC: Assume client for now
+  const isClient = useIsClient(); // DIAGNOSTIC: Restore useIsClient
+  // const isClient = true; // DIAGNOSTIC: Remove hardcoded value
 
   // --- Conditionally instantiate the inline editing hook ---
   // Use dummy values during SSR/build when isClient is false
@@ -81,25 +81,27 @@ export default function Dashboard() {
   
   useEffect(() => {
     // Effect 1: Load factories on auth ready
-    if (!loadingAuth && user) {
-      console.log("Auth resolved, loading factories...");
-      loadFactories();
-    } else if (!loadingAuth && !user) {
-       // Clear state if user logs out
-       console.log("Auth resolved, no user. Clearing state.");
-       setFactories([]);
-       setSelectedFactoryId('');
-       setPersonnel([]);
-       setFactoryRoles({});
-       setSharedRolesData({});
-       setAllRolesData({});
-       setTimeline([]);
-       setBudgetData({});
-       setInitialDataLoaded(false);
-       setLoadingPresentationData(false);
-       setError(null);
-    }
-  }, [loadingAuth, user, loadFactories]);
+    if (isClient) { // <--- Add isClient guard
+      if (!loadingAuth && user) {
+        console.log("Client: Auth resolved, loading factories...");
+        loadFactories();
+      } else if (!loadingAuth && !user) {
+         // Clear state if user logs out
+         console.log("Client: Auth resolved, no user. Clearing state.");
+         setFactories([]);
+         setSelectedFactoryId('');
+         setPersonnel([]);
+         setFactoryRoles({});
+         setSharedRolesData({});
+         setAllRolesData({});
+         setTimeline([]);
+         setBudgetData({});
+         setInitialDataLoaded(false);
+         setLoadingPresentationData(false);
+         setError(null);
+      }
+    } // <--- End isClient guard
+  }, [isClient, loadingAuth, user, loadFactories]); // Add isClient to dependencies
 
   /* --- Start comment block for Effect 2 and 3 ---
   useEffect(() => {
