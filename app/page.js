@@ -14,7 +14,7 @@ import WorkloadAnalysis from '../components/WorkloadAnalysis';
 import { useAuth } from '../lib/hooks/useAuth';
 import { useInlineEditing } from '../lib/hooks/useInlineEditing';
 import PresentationView from '../components/PresentationView';
-// import ConfirmationModal from '../components/ConfirmationModal'; // Removed static import
+import ConfirmationModal from '../components/ConfirmationModal';
 
 // Dynamically import components relying heavily on client-side logic/DOM
 const OrgStructure = dynamic(() => import('../components/OrgStructure'), {
@@ -42,12 +42,6 @@ const Timeline = dynamic(() => import('../components/Timeline'), {
 const Budget = dynamic(() => import('../components/Budget'), {
   ssr: false, 
   loading: () => <div className="loading-container">Loading Budget...</div>
-});
-
-// --- Dynamically import ConfirmationModal --- 
-const ConfirmationModal = dynamic(() => import('../components/ConfirmationModal'), {
-    ssr: false, // Modal is client-side anyway
-    loading: () => null // Don\'t show loading for modal initially
 });
 
 // Main Dashboard component
