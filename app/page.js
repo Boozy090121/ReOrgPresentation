@@ -17,9 +17,9 @@ import ConfirmActionModal from '../components/ConfirmActionModal';
 import { useIsClient } from '../lib/hooks/useIsClient';
 
 // --- DIAGNOSTIC: Revert to Static Imports ---
-// import OrgStructure from '../components/OrgStructure'; // DIAGNOSTIC: Comment out import
-// import AvailablePersonnel from '../components/AvailablePersonnel'; // DIAGNOSTIC: Comment out import
-// import RoleCard from '../components/RoleCard'; // DIAGNOSTIC: Comment out import
+import OrgStructure from '../components/OrgStructure';
+import AvailablePersonnel from '../components/AvailablePersonnel';
+import RoleCard from '../components/RoleCard'; // Consider if this still causes issues
 import Timeline from '../components/Timeline';
 import Budget from '../components/Budget';
 // ConfirmActionModal already imported statically
@@ -44,7 +44,8 @@ export default function Dashboard() {
 
   // Use the Auth hook
   const { user, isUserAdmin, loadingAuth, signOut } = useAuth();
-  const isClient = useIsClient(); // Use the hook
+  // const isClient = useIsClient(); // DIAGNOSTIC: Comment out useIsClient
+  const isClient = true; // DIAGNOSTIC: Assume client for now
 
   // --- Conditionally instantiate the inline editing hook ---
   // Use dummy values during SSR/build when isClient is false
@@ -57,9 +58,10 @@ export default function Dashboard() {
       handleKeyDown: () => { console.warn("Edit attempted before client mount"); }
   };
 
-  const editingLogic = isClient 
-      ? useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError) 
-      : initialEditingState;
+  // const editingLogic = isClient 
+  //     ? useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError) 
+  //     : initialEditingState;
+  const editingLogic = initialEditingState; // DIAGNOSTIC: Force initial state, comment out useInlineEditing usage
 
   // Destructure from the conditionally assigned logic
   const {
