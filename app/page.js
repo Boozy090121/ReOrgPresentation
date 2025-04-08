@@ -84,7 +84,7 @@ export default function Dashboard() {
     if (isClient) { // <--- Add isClient guard
       if (!loadingAuth && user) {
         console.log("Client: Auth resolved, loading factories...");
-        loadFactories();
+        // loadFactories(); // DIAGNOSTIC: Comment out the call
       } else if (!loadingAuth && !user) {
          // Clear state if user logs out
          console.log("Client: Auth resolved, no user. Clearing state.");
@@ -101,7 +101,7 @@ export default function Dashboard() {
          setError(null);
       }
     } // <--- End isClient guard
-  }, [isClient, loadingAuth, user, loadFactories]); // Add isClient to dependencies
+  }, [isClient, loadingAuth, user]); // DIAGNOSTIC: Remove loadFactories from dependencies
 
   /* --- Start comment block for Effect 2 and 3 ---
   useEffect(() => {
