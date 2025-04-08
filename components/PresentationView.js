@@ -1,4 +1,4 @@
-import React from \'react\';
+import React from 'react';
 
 // Simple Presentation View Component
 const PresentationView = ({ factories, allPersonnel, allRolesData }) => {
@@ -6,7 +6,7 @@ const PresentationView = ({ factories, allPersonnel, allRolesData }) => {
     // Helper to get assigned person name
     const getPersonName = (personId) => {
         const person = allPersonnel.find(p => p.id === personId);
-        return person ? person.name : \'(Unassigned)\';
+        return person ? person.name : '(Unassigned)';
     };
 
     // Helper to get role title
@@ -14,34 +14,36 @@ const PresentationView = ({ factories, allPersonnel, allRolesData }) => {
         return allRolesData[roleKey]?.title || roleKey;
     };
 
-    // Find the \"_shared\" factory data
-    const sharedFactory = factories.find(f => f.id === \'_shared\');
-    const sharedRoles = allRolesData[\'_shared\'] || {};
-    const sharedPersonnelAssignments = allPersonnel.filter(p => p.assignedFactoryId === \'_shared\');
+    // Find the "_shared" factory data
+    const sharedFactory = factories.find(f => f.id === '_shared');
+    // --- Get roles for shared factory from the nested structure ---
+    const sharedRoles = allRolesData && allRolesData['_shared'] ? allRolesData['_shared'] : {};
+    const sharedPersonnelAssignments = allPersonnel.filter(p => p.assignedFactoryId === '_shared');
 
     return (
-        <div className=\"presentation-view\">
+        <div className="presentation-view">
             <h1>Organizational Overview</h1>
 
             {/* Iterate through non-shared factories */} 
-            {factories.filter(f => f.id !== \'_shared\').map(factory => {
-                const factoryRoles = allRolesData[factory.id] || {};
+            {factories.filter(f => f.id !== '_shared').map(factory => {
+                 // --- Get roles for this factory from the nested structure ---
+                const factoryRoles = allRolesData && allRolesData[factory.id] ? allRolesData[factory.id] : {};
                 const factoryPersonnel = allPersonnel.filter(p => p.assignedFactoryId === factory.id);
 
                 return (
-                    <section key={factory.id} className=\"factory-section\">
+                    <section key={factory.id} className="factory-section">
                         <h2>{factory.name || factory.id}</h2>
                         {/* Display key roles or simple list */} 
-                        <div className=\"roles-summary\'>
+                        <div className="roles-summary">
                             {Object.entries(factoryRoles).map(([roleKey, roleData]) => {
                                 const assigned = factoryPersonnel.filter(p => p.assignedRoleKey === roleKey);
                                 return (
-                                    <div key={roleKey} className=\"role-summary-item\">
+                                    <div key={roleKey} className="role-summary-item">
                                         <strong>{roleData.title || roleKey}:</strong>
                                         <span>
                                             {assigned.length > 0 
-                                                ? assigned.map(p => p.name || \'(Unnamed)\').join(\', \') 
-                                                : \'(Empty)\'}
+                                                ? assigned.map(p => p.name || '(Unnamed)').join(', ') 
+                                                : '(Empty)'}
                                             ({assigned.length})
                                         </span>
                                     </div>
@@ -53,24 +55,24 @@ const PresentationView = ({ factories, allPersonnel, allRolesData }) => {
                 );
             })}
             
-             {factories.filter(f => f.id !== \'_shared\').length === 0 && (
+             {factories.filter(f => f.id !== '_shared').length === 0 && (
                  <p>No specific focus factories defined yet.</p>
              )}
 
             {/* Shared Resources Section */} 
             {sharedFactory && Object.keys(sharedRoles).length > 0 && (
-                 <section className=\"shared-resources-section factory-section\">
-                    <h2>{sharedFactory.name || \'Shared Resources\'}</h2>
-                    <div className=\"roles-summary\'>
+                 <section className="shared-resources-section factory-section">
+                    <h2>{sharedFactory.name || 'Shared Resources'}</h2>
+                    <div className="roles-summary">
                          {Object.entries(sharedRoles).map(([roleKey, roleData]) => {
                              const assigned = sharedPersonnelAssignments.filter(p => p.assignedRoleKey === roleKey);
                              return (
-                                 <div key={roleKey} className=\"role-summary-item\">
+                                 <div key={roleKey} className="role-summary-item">
                                      <strong>{roleData.title || roleKey}:</strong>
                                      <span>
                                          {assigned.length > 0 
-                                             ? assigned.map(p => p.name || \'(Unnamed)\').join(\', \') 
-                                             : \'(Empty)\'}
+                                             ? assigned.map(p => p.name || '(Unnamed)').join(', ') 
+                                             : '(Empty)'}
                                          ({assigned.length})
                                      </span>
                                  </div>
