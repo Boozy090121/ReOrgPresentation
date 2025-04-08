@@ -76,114 +76,143 @@ export default function Dashboard() {
   } = useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError);
 
   // Data Loading Effect (depends on user authentication)
+  // --- REFACTORED: Effect 1 - Load Factories on Auth Ready ---
   useEffect(() => {
-    console.log("Data loading effect triggered. LoadingAuth:", loadingAuth, "User:", !!user);
     if (!loadingAuth && user) {
-      console.log("Auth resolved. User authenticated. Proceeding with data load checks.");
-      // Load factories first (including _shared)
-      loadFactories().then(loadedFactories => {
-        // Load all roles data immediately after factories are known
-        if (loadedFactories && loadedFactories.length > 0) {
-            setLoadingPresentationData(true); // Indicate we are loading this data
-            const allRolePromises = loadedFactories.map(f => loadRoles(f.id));
-            Promise.all(allRolePromises).then(rolesArrays => {
-                const combinedRoles = {};
-                loadedFactories.forEach((factory, index) => {
-                    combinedRoles[factory.id] = rolesArrays[index] || {};
-                });
-                setAllRolesData(combinedRoles);
-                console.log("All roles data loaded successfully.");
-            }).catch(err => {
-                console.error("Error loading all roles data:", err);
-                setError(prev => prev ? prev + "\nFailed to load roles for overview." : "Failed to load roles for overview.");
-                setAllRolesData({}); // Clear potentially partial data
-            }).finally(() => {
-                setLoadingPresentationData(false); // Loading finished (success or fail)
-            });
-        } else {
-            setAllRolesData({}); // No factories, no roles data
-        }
-
-        // Determine the factory ID to load data for selection (exclude _shared)
-        const nonShared = loadedFactories.filter(f => f.id !== '_shared');
-        const factoryIdToLoad = selectedFactoryId || (nonShared.length > 0 ? nonShared[0].id : null);
-
-        // --- Load Shared Roles Always --- 
-        loadRoles('_shared').then(loadedSharedRoles => {
-          setSharedRolesData(loadedSharedRoles || {});
-          console.log("Shared roles loaded:", Object.keys(loadedSharedRoles || {}).length);
-        }).catch(err => {
-          console.error("Error loading shared roles:", err);
-          // Set error state if shared roles fail to load
-          setError(prev => prev ? prev + "\nFailed to load shared roles." : "Failed to load shared roles.");
-        });
-        // --- End Load Shared Roles ---
-
-        if (factoryIdToLoad) {
-          console.log(`Auth resolved & factories loaded. Starting data load for selected factory: ${factoryIdToLoad}`);
-          const loadAllDataForFactory = async () => {
-            setError(null);
-            setInitialDataLoaded(false);
-            console.log(`loadAllDataForFactory called for factory: ${factoryIdToLoad}...`);
-            try {
-              // Personnel is global, load regardless
-              console.log("Loading personnel (global)...");
-              const loadedPersonnel = await loadPersonnel();
-              
-              let loadedRoles = {};
-              let loadedTimelineData = [];
-              let loadedBudget = {};
-
-              // Load factory-specific data only if factoryIdToLoad is valid and not _shared
-              if (factoryIdToLoad && factoryIdToLoad !== '_shared') {
-                  console.log("Loading roles for factory:", factoryIdToLoad);
-                  loadedRoles = await loadRoles(factoryIdToLoad);
-                  console.log("Loading timeline for factory:", factoryIdToLoad);
-                  loadedTimelineData = await loadTimeline(factoryIdToLoad);
-                  console.log("Loading budget for factory:", factoryIdToLoad);
-                  loadedBudget = await loadBudget(factoryIdToLoad);
-              } else {
-                  console.log("Skipping roles/timeline/budget load for factoryId:", factoryIdToLoad);
-              }
-
-              console.log("Setting state with loaded data...");
-              setPersonnel(loadedPersonnel || []);
-              setFactoryRoles(loadedRoles || {});
-              setTimeline(loadedTimelineData || []);
-              setBudgetData(loadedBudget || {});
-              setInitialDataLoaded(true);
-              console.log("Data loading complete for factory", factoryIdToLoad);
-            } catch (err) {
-              console.error(`Error within loadAllDataForFactory (${factoryIdToLoad}):`, err);
-              setError(`Failed to load data for factory ${factories.find(f=>f.id===factoryIdToLoad)?.name || factoryIdToLoad}: ${err.message}.`);
-              setInitialDataLoaded(false);
-            }
-          };
-          loadAllDataForFactory();
-        } else if (loadedFactories.length === 0) {
-          console.log("No factories available to load data for.");
-          setInitialDataLoaded(true);
-        } else {
-          console.log("Factory ID to load is not determined yet.");
-        }
-      });
-
+      console.log("Auth resolved, loading factories...");
+      loadFactories();
     } else if (!loadingAuth && !user) {
-      console.log("Auth resolved. No user logged in.");
-      setFactories([]);
-      setSelectedFactoryId('');
-      setPersonnel([]);
-      setFactoryRoles({});
-      setTimeline([]);
-      setBudgetData({});
-      setInitialDataLoaded(false);
-      setError(null);
-    } else {
-      console.log("Auth not yet resolved or no user.");
-      setInitialDataLoaded(false);
+       // Clear all state if user logs out or isn't logged in
+       console.log("Auth resolved, no user. Clearing state.");
+       setFactories([]);
+       setSelectedFactoryId('');
+       setPersonnel([]);
+       setFactoryRoles({});
+       setSharedRolesData({});
+       setAllRolesData({});
+       setTimeline([]);
+       setBudgetData({});
+       setInitialDataLoaded(false);
+       setLoadingPresentationData(false);
+       setError(null);
     }
-  }, [loadingAuth, user, selectedFactoryId, loadFactories, loadPersonnel, loadRoles, loadTimeline, loadBudget]);
-  
+  }, [loadingAuth, user, loadFactories]); // Depends only on auth state and loadFactories callback
+
+  // --- REFACTORED: Effect 2 - Process Factories Once Loaded ---
+  useEffect(() => {
+    if (factories.length > 0) {
+        console.log("Factories loaded, processing...");
+
+        // Set default selected factory ID (if not already set by user interaction)
+        if (!selectedFactoryId) {
+            const nonShared = factories.filter(f => f.id !== '_shared');
+            if (nonShared.length > 0) {
+                setSelectedFactoryId(nonShared[0].id);
+                console.log("Default factory selected:", nonShared[0].id);
+            } else {
+                 console.log("No non-shared factories found, no default selection.");
+                 setSelectedFactoryId(''); // Ensure it's cleared if only _shared exists
+            }
+        }
+
+        // Load global personnel data 
+        console.log("Loading global personnel data...");
+        loadPersonnel().then(loadedPersonnel => {
+            setPersonnel(loadedPersonnel || []);
+            console.log("Global personnel loaded.");
+        }).catch(err => {
+             console.error("Error loading personnel:", err);
+             setError(prev => prev ? prev + "\nFailed to load personnel." : "Failed to load personnel.");
+        });
+
+        // Load shared roles data
+        console.log("Loading shared roles data...");
+        loadRoles('_shared').then(loadedSharedRoles => {
+            setSharedRolesData(loadedSharedRoles || {});
+            console.log("Shared roles loaded.");
+        }).catch(err => {
+            console.error("Error loading shared roles:", err);
+            setError(prev => prev ? prev + "\nFailed to load shared roles." : "Failed to load shared roles.");
+        });
+
+        // Load all roles data for presentation view
+        console.log("Loading all roles data for presentation...");
+        setLoadingPresentationData(true);
+        const allRolePromises = factories.map(f => loadRoles(f.id));
+        Promise.all(allRolePromises).then(rolesArrays => {
+            const combinedRoles = {};
+            factories.forEach((factory, index) => {
+                combinedRoles[factory.id] = rolesArrays[index] || {};
+            });
+            setAllRolesData(combinedRoles);
+            console.log("All roles data loaded successfully.");
+        }).catch(err => {
+            console.error("Error loading all roles data:", err);
+            setError(prev => prev ? prev + "\nFailed to load roles for overview." : "Failed to load roles for overview.");
+            setAllRolesData({}); 
+        }).finally(() => {
+            setLoadingPresentationData(false);
+        });
+
+    } else {
+        // If factories array becomes empty (e.g., after deleting last one), clear related state
+        // This might be redundant if handled by the first effect on logout/no user
+        // but can be kept for robustness
+        setSelectedFactoryId('');
+        setPersonnel([]);
+        setFactoryRoles({});
+        setSharedRolesData({});
+        setAllRolesData({});
+        setTimeline([]);
+        setBudgetData({});
+        setInitialDataLoaded(false);
+    }
+    // This effect runs when the factories list changes
+  }, [factories, loadPersonnel, loadRoles]); // Removed selectedFactoryId setter logic dep, runs when factories list itself changes
+
+  // --- REFACTORED: Effect 3 - Load Data for Selected Factory ---
+  useEffect(() => {
+      // Only run if a valid, non-shared factory is selected
+      if (selectedFactoryId && selectedFactoryId !== '_shared') {
+          console.log(`Selected factory changed to: ${selectedFactoryId}. Loading its data...`);
+          setError(null); // Clear errors from previous selection
+          setInitialDataLoaded(false); // Reset loading flag for factory-specific data
+
+          const loadFactoryData = async () => {
+              try {
+                  const [loadedRoles, loadedTimeline, loadedBudget] = await Promise.all([
+                      loadRoles(selectedFactoryId),
+                      loadTimeline(selectedFactoryId),
+                      loadBudget(selectedFactoryId)
+                  ]);
+                  setFactoryRoles(loadedRoles || {});
+                  setTimeline(loadedTimeline || []);
+                  setBudgetData(loadedBudget || {});
+                  setInitialDataLoaded(true); // Factory data loaded
+                   console.log(`Data loaded successfully for factory: ${selectedFactoryId}`);
+              } catch (err) {
+                   console.error(`Error loading data for factory ${selectedFactoryId}:`, err);
+                   setError(`Failed to load data for factory ${factories.find(f=>f.id===selectedFactoryId)?.name || selectedFactoryId}. Error: ${err.message}`);
+                   // Clear potentially stale data
+                   setFactoryRoles({});
+                   setTimeline([]);
+                   setBudgetData({});
+                   setInitialDataLoaded(false); // Indicate loading failed
+              }
+          };
+          loadFactoryData();
+          
+      } else {
+            // If no factory selected (or _shared somehow selected), clear factory-specific state
+            console.log("No valid factory selected or selection cleared. Clearing factory-specific state.");
+            setFactoryRoles({});
+            setTimeline([]);
+            setBudgetData({});
+            setInitialDataLoaded(true); // Consider it 'loaded' in the sense that no data is expected
+      }
+      // This effect runs when the selectedFactoryId changes
+  }, [selectedFactoryId, loadRoles, loadTimeline, loadBudget]); // Only depends on the selected ID and load functions
+
   // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
   const loadPersonnel = useCallback(async () => {
     const db = getDbInstance();
