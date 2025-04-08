@@ -1,5 +1,5 @@
-import React from \'react\';
-import { AlertCircle } from \'lucide-react\';
+import React from 'react';
+import { AlertCircle } from 'lucide-react';
 
 const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
   if (!isOpen) {
@@ -7,30 +7,30 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message }) => {
   }
 
   return (
-    <div className=\"modal-overlay\" onClick={onClose}> 
-      <div className=\"modal-content\" onClick={(e) => e.stopPropagation()}> 
+    <div className="modal-overlay" onClick={onClose}> 
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}> 
         <h3>
-          <AlertCircle size={20} style={{ marginRight: \'8px\', color: \'#dc3545\' }} /> 
-          {title || \'Confirm Action\'}
+          <AlertCircle size={20} style={{ marginRight: '8px', color: '#dc3545' }} /> 
+          {title || 'Confirm Action'}
         </h3>
-        <p>{message || \'Are you sure you want to proceed? This action cannot be undone.\'}</p>
-        <div className=\"modal-actions\">
+        <p>{message || 'Are you sure you want to proceed? This action cannot be undone.'}</p>
+        <div className="modal-actions">
           <button 
             onClick={onClose}
-            className=\"button secondary-button\"
+            className="button secondary-button"
           >
             Cancel
           </button>
           <button 
             onClick={onConfirm}
-            className=\"button danger-button\" // Use a danger style
+            className="button danger-button" // Use a danger style
             autoFocus // Focus confirm button
           >
             Confirm
           </button>
         </div>
       </div>
-      {/* Basic Styling (ensure styles don\'t conflict) */}
+      {/* Basic Styling (ensure styles don't conflict) */}
       <style jsx>{`
         .modal-overlay {
           position: fixed;
