@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 // import RoleCard from './RoleCard'; // DIAGNOSTIC: Comment out RoleCard import
-import { PlusCircle } from 'lucide-react'; // Import PlusCircle icon
+// import { PlusCircle } from 'lucide-react'; // DIAGNOSTIC: Comment out PlusCircle import
 
 const OrgStructure = ({
   roles,
