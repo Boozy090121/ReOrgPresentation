@@ -74,14 +74,16 @@ export default function Dashboard() {
   } = editingLogic;
   // --------------------------------------------------------
 
-  // Data Loading Effect (depends on user authentication)
-  // --- REFACTORED: Effect 1 - Load Factories on Auth Ready ---
+  // --- DIAGNOSTIC: Comment out data loading effects and callbacks ---
+
+  /* --- Start Comment Block: Effects and Callbacks ---
+  // --- Commented out useEffect Hooks ---
+  
   useEffect(() => {
     if (!loadingAuth && user) {
       console.log("Auth resolved, loading factories...");
       loadFactories();
     } else if (!loadingAuth && !user) {
-       // Clear all state if user logs out or isn't logged in
        console.log("Auth resolved, no user. Clearing state.");
        setFactories([]);
        setSelectedFactoryId('');
@@ -95,14 +97,11 @@ export default function Dashboard() {
        setLoadingPresentationData(false);
        setError(null);
     }
-  }, [loadingAuth, user, loadFactories]); // Depends only on auth state and loadFactories callback
+  }, [loadingAuth, user, loadFactories]);
 
-  // --- REFACTORED: Effect 2 - Process Factories Once Loaded ---
   useEffect(() => {
     if (factories.length > 0) {
         console.log("Factories loaded, processing...");
-
-        // Set default selected factory ID (if not already set by user interaction)
         if (!selectedFactoryId) {
             const nonShared = factories.filter(f => f.id !== '_shared');
             if (nonShared.length > 0) {
@@ -110,11 +109,9 @@ export default function Dashboard() {
                 console.log("Default factory selected:", nonShared[0].id);
             } else {
                  console.log("No non-shared factories found, no default selection.");
-                 setSelectedFactoryId(''); // Ensure it's cleared if only _shared exists
+                 setSelectedFactoryId('');
             }
         }
-
-        // Load global personnel data 
         console.log("Loading global personnel data...");
         loadPersonnel().then(loadedPersonnel => {
             setPersonnel(loadedPersonnel || []);
@@ -123,8 +120,6 @@ export default function Dashboard() {
              console.error("Error loading personnel:", err);
              setError(prev => prev ? prev + "\nFailed to load personnel." : "Failed to load personnel.");
         });
-
-        // Load shared roles data
         console.log("Loading shared roles data...");
         loadRoles('_shared').then(loadedSharedRoles => {
             setSharedRolesData(loadedSharedRoles || {});
@@ -133,8 +128,6 @@ export default function Dashboard() {
             console.error("Error loading shared roles:", err);
             setError(prev => prev ? prev + "\nFailed to load shared roles." : "Failed to load shared roles.");
         });
-
-        // Load all roles data for presentation view
         console.log("Loading all roles data for presentation...");
         setLoadingPresentationData(true);
         const allRolePromises = factories.map(f => loadRoles(f.id));
@@ -152,11 +145,7 @@ export default function Dashboard() {
         }).finally(() => {
             setLoadingPresentationData(false);
         });
-
     } else {
-        // If factories array becomes empty (e.g., after deleting last one), clear related state
-        // This might be redundant if handled by the first effect on logout/no user
-        // but can be kept for robustness
         setSelectedFactoryId('');
         setPersonnel([]);
         setFactoryRoles({});
@@ -166,17 +155,13 @@ export default function Dashboard() {
         setBudgetData({});
         setInitialDataLoaded(false);
     }
-    // This effect runs when the factories list changes
-  }, [factories, loadPersonnel, loadRoles]); // Removed selectedFactoryId setter logic dep, runs when factories list itself changes
+  }, [factories, loadPersonnel, loadRoles]);
 
-  // --- REFACTORED: Effect 3 - Load Data for Selected Factory ---
   useEffect(() => {
-      // Only run if a valid, non-shared factory is selected
       if (selectedFactoryId && selectedFactoryId !== '_shared') {
           console.log(`Selected factory changed to: ${selectedFactoryId}. Loading its data...`);
-          setError(null); // Clear errors from previous selection
-          setInitialDataLoaded(false); // Reset loading flag for factory-specific data
-
+          setError(null);
+          setInitialDataLoaded(false);
           const loadFactoryData = async () => {
               try {
                   const [loadedRoles, loadedTimeline, loadedBudget] = await Promise.all([
@@ -187,32 +172,30 @@ export default function Dashboard() {
                   setFactoryRoles(loadedRoles || {});
                   setTimeline(loadedTimeline || []);
                   setBudgetData(loadedBudget || {});
-                  setInitialDataLoaded(true); // Factory data loaded
+                  setInitialDataLoaded(true);
                    console.log(`Data loaded successfully for factory: ${selectedFactoryId}`);
               } catch (err) {
                    console.error(`Error loading data for factory ${selectedFactoryId}:`, err);
                    setError(`Failed to load data for factory ${factories.find(f=>f.id===selectedFactoryId)?.name || selectedFactoryId}. Error: ${err.message}`);
-                   // Clear potentially stale data
                    setFactoryRoles({});
                    setTimeline([]);
                    setBudgetData({});
-                   setInitialDataLoaded(false); // Indicate loading failed
+                   setInitialDataLoaded(false);
               }
           };
           loadFactoryData();
-          
       } else {
-            // If no factory selected (or _shared somehow selected), clear factory-specific state
             console.log("No valid factory selected or selection cleared. Clearing factory-specific state.");
             setFactoryRoles({});
             setTimeline([]);
             setBudgetData({});
-            setInitialDataLoaded(true); // Consider it 'loaded' in the sense that no data is expected
+            setInitialDataLoaded(true);
       }
-      // This effect runs when the selectedFactoryId changes
-  }, [selectedFactoryId, loadRoles, loadTimeline, loadBudget]); // Only depends on the selected ID and load functions
+  }, [selectedFactoryId, loadRoles, loadTimeline, loadBudget]);
+  
 
-  // Data loading functions (loadPersonnel, loadTimeline, loadBudget) - Keep for now
+  // --- Commented out useCallback Data Functions ---
+  
   const loadPersonnel = useCallback(async () => {
     const db = getDbInstance();
     if (!db) {
@@ -359,7 +342,6 @@ export default function Dashboard() {
       }
   }, [setError]);
 
-  // --- NEW: Add Factory ---
   const addFactory = useCallback(async () => {
       const db = getDbInstance();
       if (!isUserAdmin || !db) {
@@ -422,9 +404,8 @@ export default function Dashboard() {
           console.error("Error adding factory:", err);
           setError("Failed to add new factory to the database.");
       }
-  }, [isUserAdmin, setError, setFactories, setSelectedFactoryId, factories, initialBudgetData, timelineInitialData]); // Added dependencies
+  }, [isUserAdmin, setError, setFactories, setSelectedFactoryId, factories, initialBudgetData, timelineInitialData]);
 
-  // --- NEW: Delete Factory (Uses Modal) ---
   const deleteFactory = useCallback(async () => {
       if (!isUserAdmin || !selectedFactoryId) {
           setError("Permission denied or no factory selected.");
@@ -469,7 +450,7 @@ export default function Dashboard() {
       setIsConfirmModalOpen(true);
 
   }, [isUserAdmin, selectedFactoryId, factories, setError, setFactories, setSelectedFactoryId]);
-
+  
   const handleDragStart = (e, person) => {
     if (!isUserAdmin) {
       e.preventDefault();
@@ -619,9 +600,7 @@ export default function Dashboard() {
         e.currentTarget.classList.remove('drag-over-available');
     }
   };
-
-  // --- MODIFIED: Wrap getOriginalText in useCallback ---
-  // --- Restore Dependencies ---
+  
   const getOriginalText = useCallback((id) => {
     if (!id || typeof id !== 'string') {
         console.warn("getOriginalText called with invalid id:", id);
@@ -741,9 +720,8 @@ export default function Dashboard() {
     
     console.warn("getOriginalText: Unrecognized ID format or type:", id);
     return '';
-  }, [personnel, factoryRoles, timeline, budgetData]); // Restore dependencies
+  }, [personnel, factoryRoles, timeline, budgetData]);
 
-  // --- MODIFIED: Wrap updateLocalState in useCallback ---
   const updateLocalState = useCallback((id, newValue) => {
     if (!id || typeof id !== 'string') {
         console.warn("updateLocalState called with invalid id:", id);
@@ -860,7 +838,6 @@ export default function Dashboard() {
     }
   }, [setError]);
 
-  // --- MODIFIED: Update Firestore Data (Handles Array Updates for Roles) ---
   const updateFirestoreData = useCallback(async (id, value) => {
     const db = getDbInstance();
     if (!id || typeof id !== 'string' || !db || !selectedFactoryId) {
@@ -972,9 +949,8 @@ export default function Dashboard() {
         setError(`Failed to save changes for ${id}. Details: ${error.message}`);
         return false;
     }
-  }, [setError, selectedFactoryId]); // Added selectedFactoryId dependency
+  }, [setError, selectedFactoryId]);
 
-  // --- NEW: Add Responsibility ---
   const addResponsibility = useCallback(async (roleId, type, category = null) => {
       const db = getDbInstance();
       if (!isUserAdmin || !db || !selectedFactoryId || !roleId) {
@@ -1040,9 +1016,8 @@ export default function Dashboard() {
           console.error("Error adding responsibility:", err);
           setError(`Failed to add responsibility. Error: ${err.message}`);
       }
-  }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles]); // Removed firebase.firestore.FieldValue
+  }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles]);
 
-  // --- NEW: Delete Responsibility ---
   const deleteResponsibility = useCallback(async (roleId, type, category = null, itemToRemove) => {
       const db = getDbInstance();
       if (!isUserAdmin || !db || !selectedFactoryId || !roleId || itemToRemove === undefined) {
@@ -1098,9 +1073,8 @@ export default function Dashboard() {
           console.error("Error deleting responsibility:", err);
           setError(`Failed to delete responsibility. Error: ${err.message}`);
       }
-  }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles]); // Removed firebase.firestore.FieldValue
+  }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles]);
 
-  // --- NEW: Add Personnel ---
   const addPersonnel = useCallback(async () => {
       const db = getDbInstance();
       if (!isUserAdmin || !db) {
@@ -1133,7 +1107,6 @@ export default function Dashboard() {
       }
   }, [isUserAdmin, setError, setPersonnel]);
 
-  // --- NEW: Delete Personnel (Uses Modal) ---
   const deletePersonnel = useCallback(async (personId) => {
     if (!isUserAdmin || !personId) {
       setError("Permission denied or invalid ID. Cannot delete personnel.");
@@ -1209,7 +1182,6 @@ export default function Dashboard() {
     }
   }, [isUserAdmin, budgetData, setError]);
 
-  // --- NEW: Add Role --- 
   const addRole = useCallback(async () => {
     const db = getDbInstance();
     if (!isUserAdmin || !db || !selectedFactoryId) {
@@ -1250,7 +1222,6 @@ export default function Dashboard() {
     }
   }, [isUserAdmin, selectedFactoryId, setError, setFactoryRoles, colors.gray]);
 
-  // --- NEW: Delete Role (Uses Modal) --- 
   const deleteRole = useCallback(async (roleIdToDelete) => {
     if (!isUserAdmin || !selectedFactoryId || !roleIdToDelete) {
       setError("Permission denied or invalid data. Cannot delete role.");
@@ -1296,6 +1267,41 @@ export default function Dashboard() {
     setIsConfirmModalOpen(true);
 
   }, [isUserAdmin, selectedFactoryId, personnel, factoryRoles, setError, setFactoryRoles]);
+  
+   --- End Comment Block: Effects and Callbacks --- */
+
+  // --- Provide necessary dummy handlers if needed by minimal render --- 
+  const dummyCallback = useCallback(() => console.warn("Callback disabled (diagnostic)"), []);
+  const dummyAsyncCallback = useCallback(async () => { console.warn("Async callback disabled (diagnostic)"); return undefined; }, []);
+
+  const loadFactories = dummyAsyncCallback; // Needed by commented effect
+  const loadPersonnel = dummyAsyncCallback; // Needed by commented effect
+  const loadRoles = dummyAsyncCallback;     // Needed by commented effect
+  const loadTimeline = dummyAsyncCallback;  // Needed by commented effect
+  const loadBudget = dummyAsyncCallback;    // Needed by commented effect
+  
+  const addFactory = dummyAsyncCallback;
+  const deleteFactory = dummyAsyncCallback;
+  const handleDropOnRole = dummyAsyncCallback;
+  const handleDropOnAvailable = dummyAsyncCallback;
+  const handleDragStart = dummyCallback;
+  const handleDragEnd = dummyCallback;
+  const handleDragOver = useCallback((e) => e.preventDefault(), []); // Keep preventDefault
+  const handleDragEnter = dummyCallback;
+  const handleDragLeave = dummyCallback;
+  const handleDragEnterAvailable = dummyCallback;
+  const handleDragLeaveAvailable = dummyCallback;
+  const addRole = dummyAsyncCallback;
+  const deleteRole = dummyAsyncCallback;
+  const addResponsibility = dummyAsyncCallback;
+  const deleteResponsibility = dummyAsyncCallback;
+  const addPersonnel = dummyAsyncCallback;
+  const deletePersonnel = dummyAsyncCallback;
+  const saveTimelineChanges = dummyAsyncCallback;
+  const saveBudgetChanges = dummyAsyncCallback;
+  const getOriginalText = dummyCallback; // Needed by commented hook usage
+  const updateFirestoreData = dummyAsyncCallback; // Needed by commented hook usage
+  const updateLocalState = dummyCallback; // Needed by commented hook usage
 
   const renderContent = () => {
     if (!isClient) {
