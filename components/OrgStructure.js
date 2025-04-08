@@ -42,6 +42,10 @@ const OrgStructure = ({
   // Helper function to render a role card with all necessary props
   const renderRoleCard = (roleKey, roleData, personnelList, isShared = false) => {
     if (!roleData) return null;
+
+    // --- DIAGNOSTIC: Comment out RoleCard rendering ---
+    return <div key={roleKey} style={{ border: '1px dashed #ccc', padding: '10px', margin: '5px 0' }}>Role Placeholder: {roleData?.title || roleKey}</div>;
+    /*
     const assignedPersonnel = Array.isArray(personnelList) ? personnelList.filter(p => p.assignedRoleKey === roleKey) : [];
     return (
       <RoleCard
@@ -71,16 +75,16 @@ const OrgStructure = ({
         deleteResponsibility={deleteResponsibility}
       />
     );
+    */
   };
 
-  // --- DIAGNOSTIC: Simplify return value ---
-  return <div>OrgStructure Build Test</div>;
-  /*
   return (
+    // --- DIAGNOSTIC: Simplify return value --- 
+    <div>OrgStructure Build Test Placeholder</div>
+    /*
     <div className="org-structure-container">
       <div className="org-structure-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
         <h2>Focus Factory Structure</h2>
-        {/* --- Add Role Button --- */}
         {isUserAdmin && (
           <button
             onClick={addRole}
@@ -95,7 +99,6 @@ const OrgStructure = ({
       <div className="roles-list">
         {Object.keys(roles).length > 0 ? (
           Object.entries(roles).map(([roleKey, roleData]) => {
-            // Render role card using helper, pass factory-specific personnel
             return renderRoleCard(roleKey, roleData, personnel, false);
           })
         ) : (
@@ -103,25 +106,22 @@ const OrgStructure = ({
         )}
       </div>
 
-      {/* --- Shared Resources Section --- */}
       {sharedRolesData && Object.keys(sharedRolesData).length > 0 && (
         <div className="shared-resources-section" style={{ marginTop: '30px', paddingTop: '20px', borderTop: '2px solid #eee' }}>
           <h2>Shared Resources</h2>
           <div className="roles-list">
             {Object.entries(sharedRolesData).map(([roleKey, roleData]) => {
-              // Render shared role card using helper, pass shared personnel
               return renderRoleCard(roleKey, roleData, sharedPersonnel, true);
             })}
           </div>
         </div>
       )}
-      {/* Optional: Message if shared roles exist but no personnel assigned */}
       {sharedRolesData && Object.keys(sharedRolesData).length > 0 && (!sharedPersonnel || sharedPersonnel.length === 0) && (
         <p className="info-message" style={{ marginTop: '10px' }}>Drag personnel to assign them to shared roles.</p>
       )}
     </div>
+    */
   );
-  */
 };
 
 export default OrgStructure; 
