@@ -1333,12 +1333,13 @@ export default function Dashboard() {
 
     // --- DIAGNOSTIC: Only render 'structure' tab content ---
     // --- FURTHER DIAGNOSTIC: Only render OrgStructure --- 
+    // --- EVEN FURTHER: Comment out OrgStructure usage ---
     // switch (activeTab) {
     //   case 'structure':
          return (
            <div className="structure-tab">
              <div className="hierarchy-column">
-               <OrgStructure 
+               {/* <OrgStructure 
                           roles={factoryRoles} 
                           personnel={personnel.filter(p => p.assignedFactoryId === selectedFactoryId && p.assignedRoleKey)}
                           isUserAdmin={isUserAdmin}
@@ -1361,9 +1362,10 @@ export default function Dashboard() {
                           deleteResponsibility={deleteResponsibility}
                           sharedRolesData={sharedRolesData}
                           sharedPersonnel={personnel.filter(p => p.assignedFactoryId === '_shared')}
-               />
+               /> */}
+               <div>OrgStructure Placeholder</div>
              </div>
-             {/* --- Commented out for diagnostic ---
+             {/* --- Commented out AvailablePersonnel for diagnostic ---
              <AvailablePersonnel
                         personnel={personnel.filter(p => !p.assignedRoleKey)}
                         setPersonnel={setPersonnel}

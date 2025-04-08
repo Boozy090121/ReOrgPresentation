@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-// import RoleCard from './RoleCard'; // DIAGNOSTIC: Comment out RoleCard import
-// import { PlusCircle } from 'lucide-react'; // DIAGNOSTIC: Comment out PlusCircle import
+import RoleCard from './RoleCard'; // Adjusted path
+import { PlusCircle } from 'lucide-react'; // Import PlusCircle icon
 
 const OrgStructure = ({
   roles,
@@ -28,66 +28,56 @@ const OrgStructure = ({
   sharedPersonnel // New prop: Personnel assigned to shared roles
 }) => {
 
-  // const [expandedRoles, setExpandedRoles] = useState({}); // DIAGNOSTIC: Comment out useState
+  const [expandedRoles, setExpandedRoles] = useState({});
 
   // Initial check for roles data
   if (!roles) { // Check for selected factory roles
     return <div className="org-structure-container">Loading organizational structure...</div>;
   }
 
-  /* // DIAGNOSTIC: Comment out toggleRole
   const toggleRole = (roleId) => {
     setExpandedRoles(prev => ({ ...prev, [roleId]: !prev[roleId] }));
   };
-  */
 
-  // --- DIAGNOSTIC: Comment out renderRoleCard definition ---
-  /*
+  // Helper function to render a role card with all necessary props
   const renderRoleCard = (roleKey, roleData, personnelList, isShared = false) => {
     if (!roleData) return null;
-
-    // --- DIAGNOSTIC: Comment out RoleCard rendering (already done in previous step, kept for history) ---
-    return <div key={roleKey} style={{ border: '1px dashed #ccc', padding: '10px', margin: '5px 0' }}>Role Placeholder: {roleData?.title || roleKey}</div>;
-    // Original RoleCard rendering commented out below
-    // const assignedPersonnel = Array.isArray(personnelList) ? personnelList.filter(p => p.assignedRoleKey === roleKey) : [];
-    // return (
-    //   <RoleCard
-    //     key={roleKey}
-    //     roleKey={roleKey}
-    //     roleData={roleData}
-    //     personnel={assignedPersonnel} 
-    //     isUserAdmin={isUserAdmin}
-    //     expandedRoles={expandedRoles}
-    //     toggleRole={toggleRole}
-    //     handleDragOver={handleDragOver}
-    //     handleDropOnRole={handleDropOnRole}
-    //     handleDragEnter={handleDragEnter}
-    //     handleDragLeave={handleDragLeave}
-    //     handleDragStart={handleDragStart}
-    //     handleDragEnd={handleDragEnd}
-    //     handleTextClick={handleTextClick}
-    //     handleTextBlur={handleTextBlur}
-    //     handleKeyDown={handleKeyDown}
-    //     editText={editText}
-    //     editingId={editingId}
-    //     unassignPerson={unassignPerson}
-    //     handleTextChange={handleTextChange}
-    //     allRoles={isShared ? sharedRolesData : allRoles}
-    //     deleteRole={isShared ? null : deleteRole}
-    //     addResponsibility={addResponsibility}
-    //     deleteResponsibility={deleteResponsibility}
-    //   />
-    // );
+    const assignedPersonnel = Array.isArray(personnelList) ? personnelList.filter(p => p.assignedRoleKey === roleKey) : [];
+    return (
+      <RoleCard
+        key={roleKey}
+        roleKey={roleKey}
+        roleData={roleData}
+        personnel={assignedPersonnel} // Pass only personnel assigned to this specific role
+        isUserAdmin={isUserAdmin}
+        expandedRoles={expandedRoles}
+        toggleRole={toggleRole}
+        handleDragOver={handleDragOver}
+        handleDropOnRole={handleDropOnRole} // page.js handler needs to check if roleKey belongs to _shared
+        handleDragEnter={handleDragEnter}
+        handleDragLeave={handleDragLeave}
+        handleDragStart={handleDragStart} // Allow dragging *from* shared roles
+        handleDragEnd={handleDragEnd}
+        handleTextClick={handleTextClick}
+        handleTextBlur={handleTextBlur}
+        handleKeyDown={handleKeyDown}
+        editText={editText}
+        editingId={editingId}
+        unassignPerson={unassignPerson}
+        handleTextChange={handleTextChange}
+        allRoles={isShared ? sharedRolesData : allRoles}
+        deleteRole={isShared ? null : deleteRole} // Only allow deleting non-shared roles from this view
+        addResponsibility={addResponsibility} // Assuming responsibilities are edited the same way
+        deleteResponsibility={deleteResponsibility}
+      />
+    );
   };
-  */
 
   return (
-    // --- DIAGNOSTIC: Simplify return value (already done in previous step) --- 
-    <div>OrgStructure Build Test Placeholder</div>
-    /*
     <div className="org-structure-container">
       <div className="org-structure-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
         <h2>Focus Factory Structure</h2>
+        {/* --- Add Role Button --- */}
         {isUserAdmin && (
           <button
             onClick={addRole}
@@ -102,6 +92,7 @@ const OrgStructure = ({
       <div className="roles-list">
         {Object.keys(roles).length > 0 ? (
           Object.entries(roles).map(([roleKey, roleData]) => {
+            // Render role card using helper, pass factory-specific personnel
             return renderRoleCard(roleKey, roleData, personnel, false);
           })
         ) : (
@@ -109,21 +100,23 @@ const OrgStructure = ({
         )}
       </div>
 
+      {/* --- Shared Resources Section --- */}
       {sharedRolesData && Object.keys(sharedRolesData).length > 0 && (
         <div className="shared-resources-section" style={{ marginTop: '30px', paddingTop: '20px', borderTop: '2px solid #eee' }}>
           <h2>Shared Resources</h2>
           <div className="roles-list">
             {Object.entries(sharedRolesData).map(([roleKey, roleData]) => {
+              // Render shared role card using helper, pass shared personnel
               return renderRoleCard(roleKey, roleData, sharedPersonnel, true);
             })}
           </div>
         </div>
       )}
+      {/* Optional: Message if shared roles exist but no personnel assigned */}
       {sharedRolesData && Object.keys(sharedRolesData).length > 0 && (!sharedPersonnel || sharedPersonnel.length === 0) && (
         <p className="info-message" style={{ marginTop: '10px' }}>Drag personnel to assign them to shared roles.</p>
       )}
     </div>
-    */
   );
 };
 
