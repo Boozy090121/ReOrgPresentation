@@ -14,7 +14,7 @@ import WorkloadAnalysis from '../components/WorkloadAnalysis';
 import { useAuth } from '../lib/hooks/useAuth';
 import { useInlineEditing } from '../lib/hooks/useInlineEditing';
 import PresentationView from '../components/PresentationView';
-import ConfirmationModal from '../components/ConfirmationModal';
+import ConfirmActionModal from '../components/ConfirmActionModal';
 
 // Dynamically import components relying heavily on client-side logic/DOM
 const OrgStructure = dynamic(() => import('../components/OrgStructure'), {
@@ -1520,8 +1520,8 @@ export default function Dashboard() {
          {renderContent()}
       </main>
 
-      {/* --- Render Confirmation Modal --- */}
-      <ConfirmationModal 
+      {/* --- Render Confirmation Modal (use renamed component) --- */}
+      <ConfirmActionModal 
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmModalProps.onConfirm} // Pass the specific confirm action
