@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import RoleCard from './RoleCard'; // Adjusted path
+// import RoleCard from './RoleCard'; // DIAGNOSTIC: Comment out RoleCard import
 import { PlusCircle } from 'lucide-react'; // Import PlusCircle icon
 
 const OrgStructure = ({
@@ -39,47 +39,48 @@ const OrgStructure = ({
     setExpandedRoles(prev => ({ ...prev, [roleId]: !prev[roleId] }));
   };
 
-  // Helper function to render a role card with all necessary props
+  // --- DIAGNOSTIC: Comment out renderRoleCard definition ---
+  /*
   const renderRoleCard = (roleKey, roleData, personnelList, isShared = false) => {
     if (!roleData) return null;
 
-    // --- DIAGNOSTIC: Comment out RoleCard rendering ---
+    // --- DIAGNOSTIC: Comment out RoleCard rendering (already done in previous step, kept for history) ---
     return <div key={roleKey} style={{ border: '1px dashed #ccc', padding: '10px', margin: '5px 0' }}>Role Placeholder: {roleData?.title || roleKey}</div>;
-    /*
-    const assignedPersonnel = Array.isArray(personnelList) ? personnelList.filter(p => p.assignedRoleKey === roleKey) : [];
-    return (
-      <RoleCard
-        key={roleKey}
-        roleKey={roleKey}
-        roleData={roleData}
-        personnel={assignedPersonnel} // Pass only personnel assigned to this specific role
-        isUserAdmin={isUserAdmin}
-        expandedRoles={expandedRoles}
-        toggleRole={toggleRole}
-        handleDragOver={handleDragOver}
-        handleDropOnRole={handleDropOnRole} // page.js handler needs to check if roleKey belongs to _shared
-        handleDragEnter={handleDragEnter}
-        handleDragLeave={handleDragLeave}
-        handleDragStart={handleDragStart} // Allow dragging *from* shared roles
-        handleDragEnd={handleDragEnd}
-        handleTextClick={handleTextClick}
-        handleTextBlur={handleTextBlur}
-        handleKeyDown={handleKeyDown}
-        editText={editText}
-        editingId={editingId}
-        unassignPerson={unassignPerson}
-        handleTextChange={handleTextChange}
-        allRoles={isShared ? sharedRolesData : allRoles}
-        deleteRole={isShared ? null : deleteRole} // Only allow deleting non-shared roles from this view
-        addResponsibility={addResponsibility} // Assuming responsibilities are edited the same way
-        deleteResponsibility={deleteResponsibility}
-      />
-    );
-    */
+    // Original RoleCard rendering commented out below
+    // const assignedPersonnel = Array.isArray(personnelList) ? personnelList.filter(p => p.assignedRoleKey === roleKey) : [];
+    // return (
+    //   <RoleCard
+    //     key={roleKey}
+    //     roleKey={roleKey}
+    //     roleData={roleData}
+    //     personnel={assignedPersonnel} 
+    //     isUserAdmin={isUserAdmin}
+    //     expandedRoles={expandedRoles}
+    //     toggleRole={toggleRole}
+    //     handleDragOver={handleDragOver}
+    //     handleDropOnRole={handleDropOnRole}
+    //     handleDragEnter={handleDragEnter}
+    //     handleDragLeave={handleDragLeave}
+    //     handleDragStart={handleDragStart}
+    //     handleDragEnd={handleDragEnd}
+    //     handleTextClick={handleTextClick}
+    //     handleTextBlur={handleTextBlur}
+    //     handleKeyDown={handleKeyDown}
+    //     editText={editText}
+    //     editingId={editingId}
+    //     unassignPerson={unassignPerson}
+    //     handleTextChange={handleTextChange}
+    //     allRoles={isShared ? sharedRolesData : allRoles}
+    //     deleteRole={isShared ? null : deleteRole}
+    //     addResponsibility={addResponsibility}
+    //     deleteResponsibility={deleteResponsibility}
+    //   />
+    // );
   };
+  */
 
   return (
-    // --- DIAGNOSTIC: Simplify return value --- 
+    // --- DIAGNOSTIC: Simplify return value (already done in previous step) --- 
     <div>OrgStructure Build Test Placeholder</div>
     /*
     <div className="org-structure-container">
