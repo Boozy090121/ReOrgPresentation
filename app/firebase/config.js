@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -17,20 +17,19 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-let app;
-let analytics;
-let db;
-let auth;
+// Initialize Firebase App (Singleton pattern)
+// Check if Firebase App has already been initialized
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
-if (isBrowser) {
+// Get Firestore and Auth instances (can be used server-side and client-side)
+const db = getFirestore(app);
+const auth = getAuth(app);
+
+// Initialize Analytics and Persistence only on the client
+let analytics;
+if (typeof window !== 'undefined') { // Check for browser environment
   try {
-    app = initializeApp(firebaseConfig);
     analytics = getAnalytics(app);
-    db = getFirestore(app);
-    auth = getAuth(app);
-    
-    // Enable offline persistence
     enableIndexedDbPersistence(db).catch((err) => {
       if (err.code === 'failed-precondition') {
         console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
@@ -39,8 +38,14 @@ if (isBrowser) {
       }
     });
   } catch (error) {
-    console.error('Firebase initialization error:', error);
+    console.error('Firebase client-side initialization error (Analytics/Persistence):', error);
   }
 }
 
-export { app, analytics, db, auth }; 
+// Export the initialized services
+export { app, analytics, db, auth };
+
+// Optional: Helper functions to get instances (might already exist elsewhere?)
+// If not, these ensure you always get the initialized instance.
+export const getDbInstance = () => db;
+export const getAuthInstance = () => auth; 
