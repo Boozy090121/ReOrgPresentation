@@ -17,7 +17,7 @@ import ConfirmActionModal from '../components/ConfirmActionModal';
 import { useIsClient } from '../lib/hooks/useIsClient';
 
 // --- DIAGNOSTIC: Revert to Static Imports ---
-import OrgStructure from '../components/OrgStructure';
+// import OrgStructure from '../components/OrgStructure'; // DIAGNOSTIC: Comment out import
 import AvailablePersonnel from '../components/AvailablePersonnel';
 import RoleCard from '../components/RoleCard'; // Consider if this still causes issues
 import Timeline from '../components/Timeline';
