@@ -352,13 +352,16 @@ export default function Dashboard() {
          );
     }
 
-    // Switch rendering remains, passes down dummy handlers and empty state
+    // --- DIAGNOSTIC: Return simple placeholder, comment out switch ---
+    return <div>Build Test Placeholder</div>;
+    {/* 
+    // Original switch statement commented out for build diagnostic
     switch (activeTab) {
        case 'structure':
          return (
            <div className="structure-tab">
              <div className="hierarchy-column">
-               <OrgStructure
+               <OrgStructure 
                           roles={factoryRoles} // Empty
                           personnel={personnel.filter(p => p.assignedFactoryId === selectedFactoryId && p.assignedRoleKey)} // Empty
                           isUserAdmin={isUserAdmin}
@@ -408,7 +411,7 @@ export default function Dashboard() {
          );
        case 'timeline':
          return (
-           <Timeline
+           <Timeline 
               timeline={timeline} // Empty
               isUserAdmin={isUserAdmin}
               editingId={editingId}
@@ -422,7 +425,7 @@ export default function Dashboard() {
          ) ;
        case 'budget':
           return (
-             <Budget
+             <Budget 
                  budgetData={budgetData} // Empty
                  isUserAdmin={isUserAdmin}
                  editingId={editingId}
@@ -436,9 +439,9 @@ export default function Dashboard() {
           ) ;
         case 'analysis':
           // Ensure roles is defined for the check, even if empty
-          const rolesForAnalysis = factoryRoles || {};
+          const rolesForAnalysis = factoryRoles || {}; 
           return (
-             <WorkloadAnalysis
+             <WorkloadAnalysis 
                  roles={rolesForAnalysis} // Empty or {}
                  personnel={personnel} // Empty
                  isUserAdmin={isUserAdmin}
@@ -447,15 +450,16 @@ export default function Dashboard() {
         case 'presentation':
           // Removed loading/error checks specific to this tab's data
           return (
-              <PresentationView
+              <PresentationView 
                   factories={factories} // Hardcoded
                   allPersonnel={personnel} // Empty
                   allRolesData={allRolesData} // Empty
               />
           );
        default:
-         return <div className="tab-content">Select a tab</div>;
+         return <div className="tab-content">Select a tab</div>; 
     }
+    */}
   };
 
   return (
