@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
-import dynamic from 'next/dynamic';
 import { ChevronDown, ChevronUp, UserCircle, Users, Clipboard, ClipboardCheck, AlertCircle,
          BarChart, Calendar, DollarSign, Home, Beaker, UserPlus, XCircle, Move, Save, Trash2 } from 'lucide-react';
 import { getDbInstance } from './firebase/config';
@@ -17,33 +16,13 @@ import PresentationView from '../components/PresentationView';
 import ConfirmActionModal from '../components/ConfirmActionModal';
 import { useIsClient } from '../lib/hooks/useIsClient';
 
-// Dynamically import components relying heavily on client-side logic/DOM
-const OrgStructure = dynamic(() => import('../components/OrgStructure'), {
-  ssr: false,
-  loading: () => <div className="loading-container">Loading Structure...</div>
-});
-
-const AvailablePersonnel = dynamic(() => import('../components/AvailablePersonnel'), {
-  ssr: false,
-  loading: () => <div className="loading-container">Loading Personnel...</div>
-});
-
-// Consider dynamic import for RoleCard if OrgStructure still fails, as it's nested
-const RoleCard = dynamic(() => import('../components/RoleCard'), {
-  ssr: false, 
-  loading: () => <div className="loading-container">Loading Role...</div>
-});
-
-// Dynamically import Timeline and Budget as they use inline editing context
-const Timeline = dynamic(() => import('../components/Timeline'), {
-  ssr: false, 
-  loading: () => <div className="loading-container">Loading Timeline...</div>
-});
-
-const Budget = dynamic(() => import('../components/Budget'), {
-  ssr: false, 
-  loading: () => <div className="loading-container">Loading Budget...</div>
-});
+// --- DIAGNOSTIC: Revert to Static Imports ---
+import OrgStructure from '../components/OrgStructure';
+import AvailablePersonnel from '../components/AvailablePersonnel';
+import RoleCard from '../components/RoleCard'; // Consider if this still causes issues
+import Timeline from '../components/Timeline';
+import Budget from '../components/Budget';
+// ConfirmActionModal already imported statically
 
 // Main Dashboard component
 export default function Dashboard() {
