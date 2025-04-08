@@ -61,10 +61,10 @@ export default function Dashboard() {
       handleKeyDown: () => { console.warn("Edit attempted before client mount"); }
   };
 
-  // const editingLogic = isClient 
-  //     ? useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError) 
-  //     : initialEditingState;
-  const editingLogic = initialEditingState; // DIAGNOSTIC: Force initial state, comment out useInlineEditing usage
+  const editingLogic = isClient 
+      ? useInlineEditing(getOriginalText, updateFirestoreData, updateLocalState, setError) 
+      : initialEditingState;
+  // const editingLogic = initialEditingState; // DIAGNOSTIC: Force initial state, comment out useInlineEditing usage
 
   // Destructure from the conditionally assigned logic
   const {
@@ -143,14 +143,13 @@ export default function Dashboard() {
     // Only depend on variables that control *when* to run, not the functions themselves
   }, [isClient, loadingAuth, user, setError, setSelectedFactoryId]); 
 
-  // /* --- Start comment block for Effect 2 and 3 --- // Remove comment start // Keep comment start before Effect 3
+  // --- Start comment block removed ---
   useEffect(() => {
     // Effect 2: Process factories and load global data
     if (isClient) { // Add isClient guard
       if (factories.length > 0) {
           console.log("Client: Factories loaded, processing...");
           // Set default selection logic (already handled in Effect 1 inline)
-          // if (!selectedFactoryId) { ... } 
           
           // Load global personnel
           console.log("Client: Loading global personnel data...");
@@ -192,28 +191,58 @@ export default function Dashboard() {
           // Clear state if factories list is empty (Should only happen on client after initial load fails/clears)
           console.log("Client: Effect 2 - Factories list empty, clearing derived state.")
           setPersonnel([]);
-          // setFactoryRoles({}); // Let Effect 3 handle factory-specific roles
           setSharedRolesData({});
           setAllRolesData({});
-          // setTimeline([]); // Let Effect 3 handle factory-specific timeline
-          // setBudgetData({}); // Let Effect 3 handle factory-specific budget
-          setInitialDataLoaded(false); // Needs factory data to be truly loaded
+          setInitialDataLoaded(false); 
       }
     } // End isClient guard
-    // Dependency array includes isClient and the states/callbacks it uses
-  }, [isClient, factories, loadPersonnel, loadRoles, /* selectedFactoryId might not be needed here */ setError, setPersonnel, setSharedRolesData, setAllRolesData, setLoadingPresentationData]);
+    // Update dependencies
+  }, [isClient, factories, setError, setPersonnel, setSharedRolesData, setAllRolesData, setLoadingPresentationData]);
 
-  /* --- Start comment block for Effect 3 ---
+  // --- Effect 3: Uncommented and Guarded ---
   useEffect(() => {
     // Effect 3: Load data for selected factory
+    if (isClient) { // Add isClient guard
       if (selectedFactoryId && selectedFactoryId !== '_shared') {
-          // ... (loading logic) ...
+          console.log(`Client: Selected factory changed to: ${selectedFactoryId}. Loading its data...`);
+          setError(null);
+          setInitialDataLoaded(false);
+          const loadFactoryData = async () => {
+              try {
+                  // Calls to load* are okay here because the whole effect is client-side
+                  const [loadedRoles, loadedTimeline, loadedBudget] = await Promise.all([
+                      loadRoles(selectedFactoryId), 
+                      loadTimeline(selectedFactoryId),
+                      loadBudget(selectedFactoryId)
+                  ]);
+                  setFactoryRoles(loadedRoles || {});
+                  setTimeline(loadedTimeline || []);
+                  setBudgetData(loadedBudget || {});
+                  setInitialDataLoaded(true);
+                   console.log(`Client: Data loaded successfully for factory: ${selectedFactoryId}`);
+              } catch (err) {
+                   console.error(`Error loading data for factory ${selectedFactoryId}:`, err);
+                   const factory = factories.find(f => f.id === selectedFactoryId);
+                   const factoryDisplayName = factory ? factory.name : selectedFactoryId;
+                   setError(`Failed to load data for factory ${factoryDisplayName}. Error: ${err.message}`);
+                   setFactoryRoles({});
+                   setTimeline([]);
+                   setBudgetData({});
+                   setInitialDataLoaded(false);
+              }
+          };
+          loadFactoryData();
       } else {
             // Clear factory-specific data if none selected
-            // ... (clearing logic) ...
+            console.log("Client: Effect 3 - No valid factory selected or selection cleared. Clearing factory-specific state.");
+            setFactoryRoles({});
+            setTimeline([]);
+            setBudgetData({});
+            setInitialDataLoaded(true); // Consider state 'loaded' as nothing is expected
       }
-  }, [selectedFactoryId, loadRoles, loadTimeline, loadBudget]);
-  */ // --- End comment block for Effect 3 --- // Keep comment end
+    } // End isClient guard
+    // Update dependencies: Remove load* callbacks, add isClient, keep selectedFactoryId, add setters used
+  }, [isClient, selectedFactoryId, factories, setError, setFactoryRoles, setTimeline, setBudgetData, setInitialDataLoaded]); 
 
   // --- useCallback Data Functions (Remain Active) ---
   const loadPersonnel = useCallback(async () => {
@@ -1262,23 +1291,24 @@ export default function Dashboard() {
   }, [isUserAdmin, selectedFactoryId, personnel, factoryRoles, setError, setFactoryRoles]);
 
   const renderContent = () => {
+    // --- Restore Original Render Logic --- 
+
+    // Initial client-side checks
     if (!isClient) {
       return <div className="loading-container">Initializing Client...</div>;
     }
-
     if (loadingAuth) {
         return <div className="loading-container">Authenticating...</div>;
     }
-
-    // Check if db instance is available, show error if not (and not loading)
+    // Check db (moved earlier?)
     if (!db && !loadingAuth && user) {
        return <div className="error-container">Database connection failed. Please refresh.</div>;
     }
-
-    if (!initialDataLoaded && user) { // Only show if logged in
+    // Check initial data load
+    if (!initialDataLoaded && user) { 
         return <div className="loading-container">Loading Initial Data...</div>;
     }
-
+    // Check for general errors
     if (error) {
         return (
            <div className="error-container">
@@ -1296,20 +1326,18 @@ export default function Dashboard() {
            </div>
          );
     }
-
-    // --- DIAGNOSTIC: Only render 'structure' tab content ---
-    // --- FURTHER DIAGNOSTIC: Only render OrgStructure --- 
-    // --- EVEN FURTHER: Comment out OrgStructure usage ---
-    // switch (activeTab) {
-    //   case 'structure':
+    
+    // Use a switch statement based on activeTab
+    switch (activeTab) {
+       case 'structure':
          return (
            <div className="structure-tab">
              <div className="hierarchy-column">
-               {/* <OrgStructure 
+               <OrgStructure 
                           roles={factoryRoles} 
                           personnel={personnel.filter(p => p.assignedFactoryId === selectedFactoryId && p.assignedRoleKey)}
                           isUserAdmin={isUserAdmin}
-                          allRoles={factoryRoles} 
+                          allRoles={factoryRoles} // Pass factoryRoles as allRoles for context within OrgStructure
                           handleDropOnRole={handleDropOnRole}
                           handleDragEnter={handleDragEnter}
                           handleDragLeave={handleDragLeave}
@@ -1321,27 +1349,25 @@ export default function Dashboard() {
                           handleTextBlur={handleTextBlur}
                           handleKeyDown={handleKeyDown}
                           handleTextChange={handleTextChange}
-                          unassignPerson={handleDropOnAvailable}
+                          unassignPerson={handleDropOnAvailable} // Assign the correct handler
                           addRole={addRole} 
                           deleteRole={deleteRole} 
                           addResponsibility={addResponsibility}
                           deleteResponsibility={deleteResponsibility}
                           sharedRolesData={sharedRolesData}
                           sharedPersonnel={personnel.filter(p => p.assignedFactoryId === '_shared')}
-               /> */}
-               <div>OrgStructure Placeholder</div>
+               />
              </div>
-             {/* --- Commented out AvailablePersonnel for diagnostic ---
-             <AvailablePersonnel
-                        personnel={personnel.filter(p => !p.assignedRoleKey)}
+             <AvailablePersonnel 
+                        personnel={personnel.filter(p => !p.assignedRoleKey && p.assignedFactoryId !== '_shared')} // Filter out shared and assigned
                         setPersonnel={setPersonnel}
                         setError={setError}
-                        roles={factoryRoles}
+                        roles={factoryRoles} 
                         isUserAdmin={isUserAdmin}
                         handleDragStart={handleDragStart}
                         handleDragEnd={handleDragEnd}
                         handleDragOver={handleDragOver}
-                        handleDropOnAvailable={handleDropOnAvailable}
+                        handleDropOnAvailable={handleDropOnAvailable} // Drop here should unassign
                         handleDragEnterAvailable={handleDragEnterAvailable}
                         handleDragLeaveAvailable={handleDragLeaveAvailable}
                         editingId={editingId}
@@ -1352,61 +1378,59 @@ export default function Dashboard() {
                         handleTextChange={handleTextChange}
                         addPersonnel={addPersonnel}
                         deletePersonnel={deletePersonnel}
+               />
+            </div>
+           );
+         case 'timeline':
+           return (
+             <Timeline 
+                timeline={timeline}
+                isUserAdmin={isUserAdmin}
+                editingId={editingId}
+                editText={editText}
+                handleTextClick={handleTextClick}
+                handleTextBlur={handleTextBlur}
+                handleKeyDown={handleKeyDown}
+                handleTextChange={handleTextChange}
+                saveTimelineChanges={saveTimelineChanges}
              />
-             */}
-          </div>
-         );
-    //   case 'timeline':
-    //     return (
-    //       <Timeline 
-    //          timeline={timeline}
-    //          isUserAdmin={isUserAdmin}
-    //          editingId={editingId}
-    //          editText={editText}
-    //          handleTextClick={handleTextClick}
-    //          handleTextBlur={handleTextBlur}
-    //          handleKeyDown={handleKeyDown}
-    //          handleTextChange={handleTextChange}
-    //          saveTimelineChanges={saveTimelineChanges}
-    //       />
-    //     ) ;
-    //   case 'budget':
-    //      return (
-    //         <Budget 
-    //             budgetData={budgetData}
-    //             isUserAdmin={isUserAdmin}
-    //             editingId={editingId}
-    //             editText={editText}
-    //             handleTextClick={handleTextClick}
-    //             handleTextBlur={handleTextBlur}
-    //             handleKeyDown={handleKeyDown}
-    //             handleTextChange={handleTextChange}
-    //             saveBudgetChanges={saveBudgetChanges}
-    //          />
-    //      ) ;
-    //    case 'analysis':
-    //      return (
-    //         <WorkloadAnalysis 
-    //             roles={factoryRoles}
-    //             personnel={personnel}
-    //             isUserAdmin={isUserAdmin}
-    //         />
-    //      ) ;
-    //    case 'presentation':
-    //      if (loadingPresentationData) {
-    //           return <div className="loading-container">Loading Overview Data...</div>;
-    //      }
-    //      // Optionally handle specific errors for presentation data loading if needed
-    //      return (
-    //          <PresentationView 
-    //              factories={factories}
-    //              allPersonnel={personnel}
-    //              allRolesData={allRolesData}
-    //          />
-    //      );
-    //   default:
-    //     return <div className="tab-content">Select a tab</div>; 
-    // }
+           ) ;
+         case 'budget':
+            return (
+               <Budget 
+                   budgetData={budgetData}
+                   isUserAdmin={isUserAdmin}
+                   editingId={editingId}
+                   editText={editText}
+                   handleTextClick={handleTextClick}
+                   handleTextBlur={handleTextBlur}
+                   handleKeyDown={handleKeyDown}
+                   handleTextChange={handleTextChange}
+                   saveBudgetChanges={saveBudgetChanges}
+                />
+            ) ;
+          case 'analysis':
+            return (
+               <WorkloadAnalysis 
+                   roles={factoryRoles} // Pass roles for selected factory
+                   personnel={personnel} // Pass all personnel
+                   isUserAdmin={isUserAdmin}
+               />
+            ) ;
+          case 'presentation':
+            if (loadingPresentationData) {
+                 return <div className="loading-container">Loading Overview Data...</div>;
+            }
+            return (
+                <PresentationView 
+                    factories={factories}
+                    allPersonnel={personnel}
+                    allRolesData={allRolesData}
+                />
+            );
+         default:
+           return <div className="tab-content">Select a tab</div>; 
+    }
   };
 
   return (
