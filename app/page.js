@@ -1456,7 +1456,14 @@ export default function Dashboard() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      {user && <AuthSection minimal={true} signOutAction={signOut} userEmail={user.email || 'User'}/>}
+      {/* Show full AuthSection when not logged in, minimal when logged in */}
+      <AuthSection 
+        minimal={!!user} 
+        user={user} 
+        isUserAdmin={isUserAdmin} 
+        signOutAction={signOut} 
+        userEmail={user?.email || 'User'}
+      />
       
       {user && (
           <nav className="sidebar">
